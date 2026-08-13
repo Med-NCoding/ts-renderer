@@ -106,6 +106,68 @@ export class Framebuffer {
   }
 
   /**
+   * Bresenham line rasterizer — integer-only, zero floating-point per step.
+   *
+   * Core idea: track an integer error accumulator that represents how far
+   * the ideal (real-valued) line has drifted from the pixel grid row we
+   * are currently on.  When the accumulated error exceeds half a pixel,
+   * step the minor axis by one and subtract a full pixel from the error.
+   *
+   *   error starts at 2·|dy| − |dx|   (pre-biased by −½ pixel, scaled ×2)
+   *   each X step:  error += 2·|dy|
+   *   when error > 0: step Y, error −= 2·|dx|
+   *
+   * Everything is scaled ×2 so we stay in integers (no 0.5 comparisons).
+   * The algorithm is generalised to all octants via axis swapping + sign
+   * tracking before the loop runs.
+   */
+  public drawLineBresenham(
+    x0: number, y0: number,
+    x1: number, y1: number,
+    r: number, g: number, b: number, a: number = 255,
+  ): void {
+    x0 = Math.round(x0); y0 = Math.round(y0);
+    x1 = Math.round(x1); y1 = Math.round(y1);
+
+    const steep = Math.abs(y1 - y0) > Math.abs(x1 - x0);
+
+    // For steep lines, swap x and y so we always drive along the longer axis
+    if (steep) {
+      [x0, y0] = [y0, x0];
+      [x1, y1] = [y1, x1];
+    }
+
+    // Always draw left-to-right
+    if (x0 > x1) {
+      [x0, x1] = [x1, x0];
+      [y0, y1] = [y1, y0];
+    }
+
+    const dx = x1 - x0;
+    const dy = Math.abs(y1 - y0);
+    const yStep = y0 < y1 ? 1 : -1;
+
+    // Error starts at 2dy − dx (pre-biased so we compare against 0, not 0.5)
+    let error = 2 * dy - dx;
+    let y = y0;
+
+    for (let x = x0; x <= x1; x++) {
+      // Undo the swap if we swapped axes
+      if (steep) {
+        this.setPixel(y, x, r, g, b, a);
+      } else {
+        this.setPixel(x, y, r, g, b, a);
+      }
+
+      error += 2 * dy;
+      if (error > 0) {
+        y += yStep;
+        error -= 2 * dx;
+      }
+    }
+  }
+
+  /**
    * Flushes the CPU memory buffer to the screen canvas via putImageData.
    */
   public present(): void {
