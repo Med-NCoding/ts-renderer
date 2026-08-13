@@ -1,64 +1,112 @@
 import { Framebuffer } from './framebuffer';
+import { type Vec3, vec3, rotateX, rotateY } from './math';
 
 const WIDTH = 640;
 const HEIGHT = 480;
 
 const canvas = document.getElementById('render-canvas') as HTMLCanvasElement;
 const fpsDisplay = document.getElementById('fps-display') as HTMLSpanElement;
+const modeDisplay = document.getElementById('mode-display') as HTMLSpanElement;
 
 if (!canvas) {
   throw new Error('Canvas element #render-canvas not found');
 }
 
+if (modeDisplay) {
+  modeDisplay.textContent = '3D Points → Screen Dots';
+}
+
 const fb = new Framebuffer(canvas, WIDTH, HEIGHT);
+
+// 1. Define 3D point cloud (Cube vertices + internal grid points)
+const points: Vec3[] = [
+  // 8 vertices of a unit cube (-1 to 1)
+  vec3(-1, -1, -1),
+  vec3(1, -1, -1),
+  vec3(1, 1, -1),
+  vec3(-1, 1, -1),
+  vec3(-1, -1, 1),
+  vec3(1, -1, 1),
+  vec3(1, 1, 1),
+  vec3(-1, 1, 1),
+];
+
+// Add extra points along edges for visual density
+for (let i = -1; i <= 1; i += 0.4) {
+  for (let j = -1; j <= 1; j += 0.4) {
+    points.push(vec3(i, j, -1));
+    points.push(vec3(i, j, 1));
+    points.push(vec3(i, -1, j));
+    points.push(vec3(i, 1, j));
+    points.push(vec3(-1, i, j));
+    points.push(vec3(1, i, j));
+  }
+}
 
 let lastTime = performance.now();
 let frameCount = 0;
+let angleX = 0;
+let angleY = 0;
 
 /**
- * Draws a dynamic CPU plasma / pixel pattern to demonstrate direct byte-level
- * pixel manipulation in our software framebuffer.
+ * Projects a 3D point (x, y, z) into 2D screen pixel space (x_screen, y_screen).
  */
-function renderPattern(time: number): void {
-  const t = time * 0.001;
+function project(v: Vec3, scale: number = 140): { x: number; y: number } {
+  const halfW = WIDTH / 2;
+  const halfH = HEIGHT / 2;
 
-  // 1. Clear screen to dark background
-  fb.clear(15, 18, 25);
+  // Orthographic coordinate mapping:
+  // Note: Y is flipped because screen coordinates go top-to-bottom.
+  const xScreen = halfW + v.x * scale;
+  const yScreen = halfH - v.y * scale;
 
-  // 2. Render dynamic CPU pixel pattern
-  for (let y = 0; y < HEIGHT; y += 4) {
-    for (let x = 0; x < WIDTH; x += 4) {
-      // Calculate a dynamic color spectrum per-pixel block
-      const r = Math.sin(x * 0.02 + t) * 127 + 128;
-      const g = Math.cos(y * 0.02 + t) * 127 + 128;
-      const b = Math.sin((x + y) * 0.01 + t * 2) * 127 + 128;
+  return { x: xScreen, y: yScreen };
+}
 
-      // Set individual pixels in CPU RAM
-      for (let dy = 0; dy < 3; dy++) {
-        for (let dx = 0; dx < 3; dx++) {
-          fb.setPixel(x + dx, y + dy, r, g, b);
-        }
-      }
+/**
+ * Draws a multi-pixel dot at (x, y) with color brightness mapped to depth.
+ */
+function drawDot(x: number, y: number, r: number, g: number, b: number, size: number = 3): void {
+  const halfSize = Math.floor(size / 2);
+  for (let dy = -halfSize; dy <= halfSize; dy++) {
+    for (let dx = -halfSize; dx <= halfSize; dx++) {
+      fb.setPixel(x + dx, y + dy, r, g, b);
     }
   }
+}
 
-  // 3. Draw a bouncing target marker using setPixel
-  const targetX = Math.floor((Math.sin(t * 2) * 0.4 + 0.5) * WIDTH);
-  const targetY = Math.floor((Math.cos(t * 1.5) * 0.4 + 0.5) * HEIGHT);
+function render(deltaTime: number): void {
+  // Clear screen to dark background
+  fb.clear(13, 17, 23);
 
-  const crosshairSize = 15;
-  for (let i = -crosshairSize; i <= crosshairSize; i++) {
-    fb.setPixel(targetX + i, targetY, 255, 255, 255); // Horizontal white line
-    fb.setPixel(targetX, targetY + i, 255, 255, 255); // Vertical white line
+  // Update rotation angles
+  angleX += deltaTime * 0.8;
+  angleY += deltaTime * 1.2;
+
+  // Render all 3D points
+  for (const pt of points) {
+    // 1. Rotate in 3D world space
+    let rotated = rotateY(pt, angleY);
+    rotated = rotateX(rotated, angleX);
+
+    // 2. Project 3D point -> 2D screen coordinate
+    const screen = project(rotated);
+
+    // 3. Depth-based color shading (Z distance gives depth visual cue)
+    const depthFactor = (rotated.z + 2) / 4; // Normalize to roughly 0..1
+    const brightness = Math.floor(Math.max(0.2, Math.min(1.0, depthFactor)) * 255);
+
+    // 4. Draw to Framebuffer
+    drawDot(screen.x, screen.y, 88, brightness, 255);
   }
 
-  // Draw bright center dot
-  fb.setPixel(targetX, targetY, 255, 80, 80);
+  fb.present();
 }
 
 function tick(now: number): void {
-  // Update FPS counter
+  const deltaTime = (now - lastTime) * 0.001;
   frameCount++;
+
   if (now - lastTime >= 1000) {
     if (fpsDisplay) {
       fpsDisplay.textContent = `${frameCount}`;
@@ -67,14 +115,8 @@ function tick(now: number): void {
     lastTime = now;
   }
 
-  // Render frame to CPU buffer
-  renderPattern(now);
-
-  // Flush CPU buffer to screen GPU display
-  fb.present();
-
+  render(deltaTime);
   requestAnimationFrame(tick);
 }
 
-// Start main software render loop
 requestAnimationFrame(tick);
