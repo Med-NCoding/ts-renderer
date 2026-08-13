@@ -3,11 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Software Renderer</title>
+    <title>3D Software Renderer — Stage 1</title>
+    <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
-    <canvas id="canvas"></canvas>
+    <div id="app-container">
+      <header>
+        <h1>3D Software Renderer</h1>
+        <p>Stage 1: Software Framebuffer & Direct Pixel Pipeline</p>
+      </header>
+      
+      <div class="canvas-wrapper">
+        <canvas id="render-canvas"></canvas>
+      </div>
+
+      <div class="stats-bar">
+        <div class="stat-item">Resolution: <span id="res-display">640x480</span></div>
+        <div class="stat-item">FPS: <span id="fps-display">0</span></div>
+        <div class="stat-item">Mode: <span id="mode-display">Direct Pixel Buffer</span></div>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
-
