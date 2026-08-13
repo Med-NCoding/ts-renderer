@@ -1,48 +1,85 @@
 import { Framebuffer } from './framebuffer';
+import { type Vec3, vec3, rotateX, rotateY } from './math';
 
 const WIDTH  = 640;
 const HEIGHT = 480;
 
 const canvas = document.getElementById('render-canvas') as HTMLCanvasElement;
-const modeDisplay = document.getElementById('mode-display') as HTMLSpanElement;
+const fpsDisplay   = document.getElementById('fps-display')   as HTMLSpanElement;
+const modeDisplay  = document.getElementById('mode-display')  as HTMLSpanElement;
 
-if (modeDisplay) modeDisplay.textContent = 'DDA (left) vs Bresenham (right)';
+if (modeDisplay) modeDisplay.textContent = 'Wireframe Cube';
 
 const fb = new Framebuffer(canvas, WIDTH, HEIGHT);
-fb.clear(13, 17, 23);
 
-// ── Divider ─────────────────────────────────────────────────────────────────
-for (let y = 0; y < HEIGHT; y++) fb.setPixel(WIDTH / 2, y, 50, 50, 60);
-
-// ── Shared line definitions (relative coords, applied to each half) ──────────
-// Each entry: [x0, y0, x1, y1, r, g, b]
-const lines: [number, number, number, number, number, number, number][] = [
-  [20,  30, 270,  30, 255,  80,  80],   // horizontal
-  [150,  20, 150, 450,  80, 255,  80],   // vertical
-  [20, 450, 270,  30, 255, 220,  50],   // 45° diagonal
-  [20, 240, 270, 140,  80, 180, 255],   // shallow (|dx| >> |dy|)
-  [220,  30, 180, 450, 200,  80, 255],  // steep   (|dy| >> |dx|)
-  [270, 360,  20, 360, 255, 140,  60],  // reverse horizontal
+// ── Geometry ────────────────────────────────────────────────────────────────
+// 8 corners of a unit cube, each coordinate is -1 or +1.
+// Think of them as the corners of a box that goes from -1 to +1 on every axis.
+const vertices: Vec3[] = [
+  vec3(-1, -1, -1), // 0 — back  bottom left
+  vec3( 1, -1, -1), // 1 — back  bottom right
+  vec3( 1,  1, -1), // 2 — back  top    right
+  vec3(-1,  1, -1), // 3 — back  top    left
+  vec3(-1, -1,  1), // 4 — front bottom left
+  vec3( 1, -1,  1), // 5 — front bottom right
+  vec3( 1,  1,  1), // 6 — front top    right
+  vec3(-1,  1,  1), // 7 — front top    left
 ];
 
-const HALF = WIDTH / 2;
+// 12 edges: each entry is [indexA, indexB] — two vertex indices to connect.
+// 4 edges on the back face + 4 on the front face + 4 connecting them = 12.
+const edges: [number, number][] = [
+  [0, 1], [1, 2], [2, 3], [3, 0], // back  face
+  [4, 5], [5, 6], [6, 7], [7, 4], // front face
+  [0, 4], [1, 5], [2, 6], [3, 7], // connecting pillars
+];
 
-for (const [x0, y0, x1, y1, r, g, b] of lines) {
-  // Left half — DDA
-  fb.drawLine(x0, y0, x1, y1, r, g, b);
-
-  // Right half — Bresenham (shift x coords by HALF)
-  fb.drawLineBresenham(x0 + HALF, y0, x1 + HALF, y1, r, g, b);
+// ── Projection (same orthographic mapping as Stage 2) ───────────────────────
+function project(v: Vec3): { x: number; y: number } {
+  const scale = 150;
+  return {
+    x: WIDTH  / 2 + v.x * scale,
+    y: HEIGHT / 2 - v.y * scale, // flip Y: screen Y grows downward
+  };
 }
 
-// Labels drawn pixel-by-pixel via tiny dot markers (no font needed)
-// Just a small crosshair at top-centre of each half to mark them
-const markY = 12;
-for (let i = -6; i <= 6; i++) {
-  fb.setPixel(HALF / 2 + i, markY, 255, 255, 255);
-  fb.setPixel(HALF / 2,     markY + i, 255, 255, 255);
-  fb.setPixel(HALF + HALF / 2 + i, markY, 255, 255, 255);
-  fb.setPixel(HALF + HALF / 2,     markY + i, 255, 255, 255);
+// ── Render loop ─────────────────────────────────────────────────────────────
+let lastTime  = performance.now();
+let frameCount = 0;
+let angleX = 0;
+let angleY = 0;
+
+function tick(now: number): void {
+  const dt = (now - lastTime) / 1000;
+  frameCount++;
+  if (now - lastTime >= 1000) {
+    if (fpsDisplay) fpsDisplay.textContent = `${frameCount}`;
+    frameCount = 0;
+    lastTime = now;
+  }
+
+  angleX += dt * 0.6;
+  angleY += dt * 0.9;
+
+  fb.clear(13, 17, 23);
+
+  // 1. Rotate every vertex, project to 2D, store screen coords
+  const screen: { x: number; y: number }[] = vertices.map(v => {
+    const r = rotateX(rotateY(v, angleY), angleX);
+    return project(r);
+  });
+
+  // 2. For each edge, draw a Bresenham line between its two projected endpoints
+  for (const [a, b] of edges) {
+    fb.drawLineBresenham(
+      screen[a].x, screen[a].y,
+      screen[b].x, screen[b].y,
+      80, 200, 255,
+    );
+  }
+
+  fb.present();
+  requestAnimationFrame(tick);
 }
 
-fb.present();
+requestAnimationFrame(tick);
