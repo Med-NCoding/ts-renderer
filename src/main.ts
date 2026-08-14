@@ -75,22 +75,34 @@ function tick(now: number): void {
   const mvpMatrix = mat4Mul(projMatrix, mat4Mul(viewMatrix, modelMatrix));
 
   // ── Transform vertices: model space → clip space → NDC → screen ─────────────
-  const screen = mesh.vertices.map(v => {
+  const transformed = mesh.vertices.map(v => {
     const clip = mulMat4Vec4(mvpMatrix, toHomogeneous(v));
     const ndc  = fromHomogeneous(clip);
-    return ndcToScreen(ndc.x, ndc.y);
+    const screenPt = ndcToScreen(ndc.x, ndc.y);
+    return { x: screenPt.x, y: screenPt.y, z: ndc.z };
   });
 
   // ── Fill each face with flat grey ──────────────────────────────────────────
   for (const { a, b, c } of mesh.faces) {
-    fillTriangle(fb, screen[a], screen[b], screen[c], FILL_R, FILL_G, FILL_B);
+    fillTriangle(
+      fb,
+      transformed[a],
+      transformed[b],
+      transformed[c],
+      transformed[a].z,
+      transformed[b].z,
+      transformed[c].z,
+      FILL_R,
+      FILL_G,
+      FILL_B,
+    );
   }
 
   // ── DEBUG wireframe (uncomment to overlay edges) ─────────────────────────
   // for (const { a, b, c } of mesh.faces) {
-  //   fb.drawLineBresenham(screen[a].x, screen[a].y, screen[b].x, screen[b].y, 255, 80, 80);
-  //   fb.drawLineBresenham(screen[b].x, screen[b].y, screen[c].x, screen[c].y, 255, 80, 80);
-  //   fb.drawLineBresenham(screen[c].x, screen[c].y, screen[a].x, screen[a].y, 255, 80, 80);
+  //   fb.drawLineBresenham(transformed[a].x, transformed[a].y, transformed[b].x, transformed[b].y, 255, 80, 80);
+  //   fb.drawLineBresenham(transformed[b].x, transformed[b].y, transformed[c].x, transformed[c].y, 255, 80, 80);
+  //   fb.drawLineBresenham(transformed[c].x, transformed[c].y, transformed[a].x, transformed[a].y, 255, 80, 80);
   // }
 
   fb.present();

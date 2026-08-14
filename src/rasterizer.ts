@@ -132,14 +132,18 @@ export function isPixelInsideTriangle(
 
 /**
  * Rasterizes (fills) a 2D projected triangle into the framebuffer with a flat RGBA color.
- * Iterates only over the pixels within the triangle's screen bounding box and tests
- * each pixel center against the edge functions.
+ * Iterates only over the pixels within the triangle's screen bounding box, tests
+ * each pixel center against the edge functions, interpolates depth, and performs
+ * depth testing.
  */
 export function fillTriangle(
   fb: Framebuffer,
   v0: ScreenPoint,
   v1: ScreenPoint,
   v2: ScreenPoint,
+  z0: number,
+  z1: number,
+  z2: number,
   r: number,
   g: number,
   b: number,
@@ -151,9 +155,18 @@ export function fillTriangle(
   for (let y = box.minY; y <= box.maxY; y++) {
     for (let x = box.minX; x <= box.maxX; x++) {
       const pixelCenter: ScreenPoint = { x: x + 0.5, y: y + 0.5 };
-      if (isPixelInsideTriangle(v0, v1, v2, pixelCenter)) {
-        fb.setPixel(x, y, r, g, b, a);
+      const coords = barycentric(v0, v1, v2, pixelCenter);
+      if (coords && coords.w0 >= 0 && coords.w1 >= 0 && coords.w2 >= 0) {
+        // Interpolate depth value linearly in screen space using barycentric weights
+        const depth = coords.w0 * z0 + coords.w1 * z1 + coords.w2 * z2;
+
+        // Depth test: closer pixels have smaller depth values
+        if (depth < fb.getDepth(x, y)) {
+          fb.setDepth(x, y, depth);
+          fb.setPixel(x, y, r, g, b, a);
+        }
       }
     }
   }
 }
+
