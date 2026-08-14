@@ -22,7 +22,7 @@ const fb = new Framebuffer(canvas, WIDTH, HEIGHT);
 const mesh = parseObj(objText);
 
 // ── Camera / View matrix ─────────────────────────────────────────────────────
-const viewMatrix = mat4Translation(0, 0, -4);
+const viewMatrix = mat4Translation(0, 0, -4.8);
 
 // ── Projection matrix ─────────────────────────────────────────────────────────
 const projMatrix = mat4Perspective(
