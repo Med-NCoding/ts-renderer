@@ -8,15 +8,11 @@ import {
 import { parseObj } from './obj-parser';
 import objText from '../models/tetrahedron.obj?raw';
 
-
 const WIDTH  = 640;
 const HEIGHT = 480;
 
 const canvas     = document.getElementById('render-canvas') as HTMLCanvasElement;
 const fpsDisplay = document.getElementById('fps-display')   as HTMLSpanElement;
-const modeDisplay = document.getElementById('mode-display') as HTMLSpanElement;
-
-if (modeDisplay) modeDisplay.textContent = 'OBJ Wireframe — view transform';
 
 const fb = new Framebuffer(canvas, WIDTH, HEIGHT);
 
