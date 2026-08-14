@@ -246,3 +246,51 @@ export function mat4Translation(tx: number, ty: number, tz: number): Mat4 {
     0, 0, 0,  1,
   ];
 }
+
+/**
+ * Returns the standard right-handed perspective projection matrix.
+ *
+ * Parameters:
+ *   fovY   — vertical field of view in radians (e.g. Math.PI / 3  for 60°)
+ *   aspect — viewport width / height            (e.g. 640 / 480)
+ *   near   — distance to the near clip plane    (e.g. 0.1)
+ *   far    — distance to the far clip plane     (e.g. 100)
+ *
+ * The camera looks down the −Z axis (right-handed convention).
+ * Input points must be in camera space with z ∈ (−far, −near).
+ *
+ * The matrix (row-major, applied as M · v):
+ *
+ *   f = 1 / tan(fovY / 2)          ← "focal length" — how zoomed in we are
+ *   d = near − far                 ← depth range (always negative)
+ *
+ *   | f/aspect   0        0              0         |
+ *   |   0        f        0              0         |
+ *   |   0        0   (far+near)/d    2·far·near/d  |
+ *   |   0        0       −1              0         |
+ *
+ * After multiplying a camera-space point (x,y,z,1):
+ *   clip.w = −z                  ← depth encoded in w
+ *
+ * After fromHomogeneous() divides by w (the perspective divide):
+ *   NDC.x = (f/aspect · x) / −z  → smaller when z is more negative (farther)
+ *   NDC.y = (f · y)       / −z  → same — this IS the perspective shrinkage
+ *   NDC.z = depth value in [−1, 1] for clipping
+ */
+export function mat4Perspective(
+  fovY: number,
+  aspect: number,
+  near: number,
+  far: number,
+): Mat4 {
+  const f = 1.0 / Math.tan(fovY / 2);   // focal length
+  const d = near - far;                  // always negative
+
+  return [
+    f / aspect,  0,              0,                    0,
+    0,           f,              0,                    0,
+    0,           0,  (far + near) / d,  (2 * far * near) / d,
+    0,           0,             -1,                    0,
+  ];
+}
+
