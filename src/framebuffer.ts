@@ -12,6 +12,7 @@ export class Framebuffer {
   private imageData: ImageData;
   private pixels: Uint8ClampedArray;
   private buffer32: Uint32Array;
+  private depthBuffer: Float32Array;
 
   constructor(canvas: HTMLCanvasElement, width: number, height: number) {
     this.canvas = canvas;
@@ -33,15 +34,45 @@ export class Framebuffer {
 
     // View raw ArrayBuffer as 32-bit integers for ultra-fast clear/pixel manipulation
     this.buffer32 = new Uint32Array(this.imageData.data.buffer);
+
+    // Allocate depth buffer
+    this.depthBuffer = new Float32Array(width * height);
+    this.depthBuffer.fill(Infinity);
   }
 
   /**
-   * Clears the entire framebuffer color memory with a given RGBA color.
+   * Clears the entire framebuffer color memory with a given RGBA color
+   * and resets the depth buffer to Infinity.
    */
   public clear(r: number, g: number, b: number, a: number = 255): void {
     // Little-endian RGBA packing for Uint32Array: 0xAABBGGRR
     const color32 = ((a & 0xff) << 24) | ((b & 0xff) << 16) | ((g & 0xff) << 8) | (r & 0xff);
     this.buffer32.fill(color32);
+    this.depthBuffer.fill(Infinity);
+  }
+
+  /**
+   * Gets the depth value at (x, y). Returns Infinity if out of bounds.
+   */
+  public getDepth(x: number, y: number): number {
+    x = Math.floor(x);
+    y = Math.floor(y);
+    if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
+      return Infinity;
+    }
+    return this.depthBuffer[y * this.width + x];
+  }
+
+  /**
+   * Sets the depth value at (x, y) if coordinates are within bounds.
+   */
+  public setDepth(x: number, y: number, depth: number): void {
+    x = Math.floor(x);
+    y = Math.floor(y);
+    if (x < 0 || x >= this.width || y < 0 || y >= this.height) {
+      return;
+    }
+    this.depthBuffer[y * this.width + x] = depth;
   }
 
   /**
