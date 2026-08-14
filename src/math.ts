@@ -294,3 +294,33 @@ export function mat4Perspective(
   ];
 }
 
+/**
+ * Returns a rotation matrix for rotating by `angle` radians around an
+ * arbitrary normalized axis (nx, ny, nz) — the Rodrigues rotation formula.
+ *
+ * Unlike separate rotateX / rotateY, this always produces a perfectly
+ * constant angular velocity: no gimbal-lock spikes regardless of orientation.
+ *
+ * The axis MUST be a unit vector (nx²+ny²+nz² = 1).
+ *
+ *   c = cos(angle),  s = sin(angle),  t = 1 − c
+ *
+ *   | t·nx²+c      t·nx·ny−s·nz  t·nx·nz+s·ny  0 |
+ *   | t·ny·nx+s·nz  t·ny²+c      t·ny·nz−s·nx  0 |
+ *   | t·nz·nx−s·ny  t·nz·ny+s·nx  t·nz²+c      0 |
+ *   | 0             0             0             1 |
+ */
+export function mat4RotationAxis(
+  nx: number, ny: number, nz: number,
+  angle: number,
+): Mat4 {
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  const t = 1 - c;
+  return [
+    t*nx*nx + c,       t*nx*ny - s*nz,  t*nx*nz + s*ny,  0,
+    t*ny*nx + s*nz,   t*ny*ny + c,      t*ny*nz - s*nx,  0,
+    t*nz*nx - s*ny,   t*nz*ny + s*nx,  t*nz*nz + c,      0,
+    0,                0,               0,               1,
+  ];
+}

@@ -2,9 +2,9 @@ import { Framebuffer } from './framebuffer';
 import {
   toHomogeneous, fromHomogeneous,
   mulMat4Vec4, mat4Mul,
-  mat4RotationX, mat4RotationY,
   mat4Translation,
   mat4Perspective,
+  mat4RotationAxis,
 } from './math';
 import { parseObj } from './obj-parser';
 import objText from '../models/tetrahedron.obj?raw';
@@ -21,12 +21,9 @@ const fb = new Framebuffer(canvas, WIDTH, HEIGHT);
 const mesh = parseObj(objText);
 
 // ── Camera / View matrix ─────────────────────────────────────────────────────
-// Camera fixed at (0, 0, 4) looking down −Z.
 const viewMatrix = mat4Translation(0, 0, -4);
 
 // ── Projection matrix ─────────────────────────────────────────────────────────
-// 60° vertical FOV, correct aspect, near=0.1, far=100.
-// This makes objects appear smaller as they move farther away (real perspective).
 const projMatrix = mat4Perspective(
   Math.PI / 3,        // 60° vertical FOV
   WIDTH / HEIGHT,     // 4:3 aspect ratio
@@ -34,9 +31,14 @@ const projMatrix = mat4Perspective(
   100,                // far plane
 );
 
+// ── Rotation axis ─────────────────────────────────────────────────────────────
+// A single tilted axis gives perfectly constant angular velocity — no gimbal
+// lock spikes. The axis (1, 1.6, 0.5) is normalised below; its tilt means the
+// model tumbles through many orientations (top, sides, and bottom all visible).
+const axisLen = Math.sqrt(1**2 + 1.6**2 + 0.5**2);
+const AXIS = { x: 1 / axisLen, y: 1.6 / axisLen, z: 0.5 / axisLen };
+
 // ── NDC → screen pixels ───────────────────────────────────────────────────────
-// After the perspective divide, x/y are in [-1, 1] (NDC).
-// Map to canvas pixel coordinates, flipping Y (screen Y grows downward).
 function ndcToScreen(x: number, y: number): { x: number; y: number } {
   return {
     x: (x + 1) * 0.5 * WIDTH,
@@ -47,9 +49,8 @@ function ndcToScreen(x: number, y: number): { x: number; y: number } {
 // ── Render loop ───────────────────────────────────────────────────────────────
 let lastTime   = performance.now();
 let frameCount = 0;
-let time   = 0;   // total elapsed seconds — drives Z oscillation
-let angleX = 0;
-let angleY = 0;
+let time  = 0;
+let angle = 0;  // single accumulator — constant angular velocity guaranteed
 
 function tick(now: number): void {
   const dt = (now - lastTime) / 1000;
@@ -60,27 +61,24 @@ function tick(now: number): void {
     lastTime = now;
   }
 
-  // Slow, easy-to-read rotation
-  time   += dt;
-  angleX += dt * 0.25;   // ~14°/s tilt
-  angleY += dt * 0.40;   // ~23°/s spin
+  time  += dt;
+  angle += dt * 0.05;   // ~2.9°/s — full rotation every ~125 s; very slow, no spikes
 
   fb.clear(0, 0, 0);
 
   // ── Build MVP ────────────────────────────────────────────────────────────────
-  // Z oscillation: model drifts ±1.2 units toward/away from camera so the
-  // perspective size change is clearly visible (closer = bigger, farther = smaller).
-  const modelZ  = Math.sin(time * 0.5) * 1.2;
-  const rotations   = mat4Mul(mat4RotationX(angleX), mat4RotationY(angleY));
-  const modelMatrix = mat4Mul(mat4Translation(0, 0, modelZ), rotations);
+  // Subtle Z oscillation (±0.4) so perspective depth is visible but doesn't
+  // cause perceived speed changes the way ±1.2 did.
+  const modelZ      = Math.sin(time * 0.2) * 0.4;
+  const rotation    = mat4RotationAxis(AXIS.x, AXIS.y, AXIS.z, angle);
+  const modelMatrix = mat4Mul(mat4Translation(0, 0, modelZ), rotation);
 
-  // MVP = projection × view × model  (applied right-to-left to each vertex)
   const mvpMatrix = mat4Mul(projMatrix, mat4Mul(viewMatrix, modelMatrix));
 
   // ── Transform vertices: model space → clip space → NDC → screen ─────────────
   const screen = mesh.vertices.map(v => {
     const clip = mulMat4Vec4(mvpMatrix, toHomogeneous(v));
-    const ndc  = fromHomogeneous(clip);   // perspective divide: xyz / w
+    const ndc  = fromHomogeneous(clip);
     return ndcToScreen(ndc.x, ndc.y);
   });
 
