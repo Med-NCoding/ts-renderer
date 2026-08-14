@@ -66,7 +66,7 @@ function tick(now: number): void {
   }
 
   time  += dt;
-  angle += dt * 0.05;
+  angle += dt * 0.6;
 
   fb.clear(0, 0, 0);
 
