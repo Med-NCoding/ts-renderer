@@ -154,3 +154,75 @@ export function mulMat4Vec4(m: Mat4, v: Vec4): Vec4 {
     w: m[12] * v.x + m[13] * v.y + m[14] * v.z + m[15] * v.w,
   };
 }
+
+/**
+ * Multiplies two 4×4 matrices: result = a · b
+ *
+ * Used to combine transforms into a single matrix before applying to vertices.
+ * Order matters: a · b applies b first, then a.
+ *
+ * Example:  mat4Mul(mat4RotationX(ax), mat4RotationY(ay))
+ *   → rotates Y first, then X  (same order as the old rotateX(rotateY(...)))
+ */
+export function mat4Mul(a: Mat4, b: Mat4): Mat4 {
+  return [
+    a[0]*b[0]  + a[1]*b[4]  + a[2]*b[8]  + a[3]*b[12],
+    a[0]*b[1]  + a[1]*b[5]  + a[2]*b[9]  + a[3]*b[13],
+    a[0]*b[2]  + a[1]*b[6]  + a[2]*b[10] + a[3]*b[14],
+    a[0]*b[3]  + a[1]*b[7]  + a[2]*b[11] + a[3]*b[15],
+
+    a[4]*b[0]  + a[5]*b[4]  + a[6]*b[8]  + a[7]*b[12],
+    a[4]*b[1]  + a[5]*b[5]  + a[6]*b[9]  + a[7]*b[13],
+    a[4]*b[2]  + a[5]*b[6]  + a[6]*b[10] + a[7]*b[14],
+    a[4]*b[3]  + a[5]*b[7]  + a[6]*b[11] + a[7]*b[15],
+
+    a[8]*b[0]  + a[9]*b[4]  + a[10]*b[8]  + a[11]*b[12],
+    a[8]*b[1]  + a[9]*b[5]  + a[10]*b[9]  + a[11]*b[13],
+    a[8]*b[2]  + a[9]*b[6]  + a[10]*b[10] + a[11]*b[14],
+    a[8]*b[3]  + a[9]*b[7]  + a[10]*b[11] + a[11]*b[15],
+
+    a[12]*b[0] + a[13]*b[4] + a[14]*b[8]  + a[15]*b[12],
+    a[12]*b[1] + a[13]*b[5] + a[14]*b[9]  + a[15]*b[13],
+    a[12]*b[2] + a[13]*b[6] + a[14]*b[10] + a[15]*b[14],
+    a[12]*b[3] + a[13]*b[7] + a[14]*b[11] + a[15]*b[15],
+  ];
+}
+
+/**
+ * Returns a rotation matrix around the X axis by `angle` radians.
+ *
+ *   | 1    0       0    0 |
+ *   | 0  cos θ  -sin θ  0 |
+ *   | 0  sin θ   cos θ  0 |
+ *   | 0    0       0    1 |
+ */
+export function mat4RotationX(angle: number): Mat4 {
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  return [
+    1,  0,  0,  0,
+    0,  c, -s,  0,
+    0,  s,  c,  0,
+    0,  0,  0,  1,
+  ];
+}
+
+/**
+ * Returns a rotation matrix around the Y axis by `angle` radians.
+ *
+ *   |  cos θ  0  sin θ  0 |
+ *   |    0    1    0    0 |
+ *   | -sin θ  0  cos θ  0 |
+ *   |    0    0    0    1 |
+ */
+export function mat4RotationY(angle: number): Mat4 {
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  return [
+     c,  0,  s,  0,
+     0,  1,  0,  0,
+    -s,  0,  c,  0,
+     0,  0,  0,  1,
+  ];
+}
+

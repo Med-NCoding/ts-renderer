@@ -1,7 +1,12 @@
 import { Framebuffer } from './framebuffer';
-import { rotateX, rotateY } from './math';
+import {
+  toHomogeneous, fromHomogeneous,
+  mulMat4Vec4, mat4Mul,
+  mat4RotationX, mat4RotationY,
+} from './math';
 import { parseObj } from './obj-parser';
 import objText from '../models/tetrahedron.obj?raw';
+
 
 const WIDTH  = 640;
 const HEIGHT = 480;
@@ -49,8 +54,14 @@ function tick(now: number): void {
 
   fb.clear(13, 17, 23);
 
-  // 1. Rotate every OBJ vertex in 3D, then project to 2D screen coords
-  const screen = mesh.vertices.map(v => project(rotateX(rotateY(v, angleY), angleX)));
+  // 1. Build the model matrix once per frame (Y rotation then X rotation)
+  //    mat4Mul(RX, RY) means: apply RY first, then RX — matches old behaviour.
+  const modelMatrix = mat4Mul(mat4RotationX(angleX), mat4RotationY(angleY));
+
+  // 2. Transform every OBJ vertex: model space → world space → 2D screen
+  const screen = mesh.vertices.map(v =>
+    project(fromHomogeneous(mulMat4Vec4(modelMatrix, toHomogeneous(v)))),
+  );
 
   // 2. For each triangle face, draw its 3 edges using Bresenham
   for (const { a, b, c } of mesh.faces) {
