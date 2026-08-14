@@ -367,3 +367,11 @@ export function vec3Normalize(v: Vec3): Vec3 {
   };
 }
 
+/**
+ * Computes the dot product of two 3D vectors.
+ */
+export function vec3Dot(a: Vec3, b: Vec3): number {
+  return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+

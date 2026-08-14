@@ -5,7 +5,7 @@ import {
   mat4Translation,
   mat4Perspective,
   mat4RotationAxis,
-  vec3Sub, vec3Cross, vec3Normalize,
+  vec3Sub, vec3Cross, vec3Normalize, vec3Dot,
 } from './math';
 import { parseObj } from './obj-parser';
 import objText from '../models/tetrahedron.obj?raw';
@@ -37,8 +37,11 @@ const projMatrix = mat4Perspective(
 const axisLen = Math.sqrt(1**2 + 1.6**2 + 0.5**2);
 const AXIS = { x: 1 / axisLen, y: 1.6 / axisLen, z: 0.5 / axisLen };
 
-// Single grey fill — will stay this colour until lighting is added.
-const FILL_R = 150, FILL_G = 150, FILL_B = 150;
+// Directional light vector pointing towards the light source (top-right-front)
+const LIGHT_DIR = vec3Normalize({ x: 1.0, y: 2.0, z: 1.0 });
+
+// Base material color (grey)
+const MATERIAL_R = 150, MATERIAL_G = 150, MATERIAL_B = 150;
 
 // ── NDC → screen pixels ───────────────────────────────────────────────────────
 function ndcToScreen(x: number, y: number): { x: number; y: number } {
@@ -92,15 +95,23 @@ function tick(now: number): void {
     return fromHomogeneous(world4);
   });
 
-  // ── Fill each face with flat grey ──────────────────────────────────────────
+  // ── Fill each face with flat grey modulated by diffuse lighting ───────────
   for (const { a, b, c } of mesh.faces) {
     // Compute face normal in world space
     const edge1 = vec3Sub(worldPos[b], worldPos[a]);
     const edge2 = vec3Sub(worldPos[c], worldPos[a]);
     const normal = vec3Normalize(vec3Cross(edge1, edge2));
     
-    // Explicitly reference normal to bypass noUnusedLocals compiler check
-    void normal;
+    // Diffuse lighting intensity: dot(normal, lightDir)
+    const diffuse = Math.max(0, vec3Dot(normal, LIGHT_DIR));
+    
+    // Add ambient component so unlit faces remain slightly visible
+    const ambient = 0.15;
+    const factor = ambient + (1.0 - ambient) * diffuse;
+
+    const r = Math.round(MATERIAL_R * factor);
+    const g = Math.round(MATERIAL_G * factor);
+    const bColor = Math.round(MATERIAL_B * factor);
 
     fillTriangle(
       fb,
@@ -110,9 +121,9 @@ function tick(now: number): void {
       transformed[a].z,
       transformed[b].z,
       transformed[c].z,
-      FILL_R,
-      FILL_G,
-      FILL_B,
+      r,
+      g,
+      bColor,
     );
   }
 
