@@ -48,18 +48,21 @@ function ndcToScreen(x: number, y: number): { x: number; y: number } {
 }
 
 // ── Render loop ───────────────────────────────────────────────────────────────
-let lastTime   = performance.now();
-let frameCount = 0;
+let lastTime    = performance.now();
+let lastFpsTime = lastTime;
+let frameCount  = 0;
 let time  = 0;
 let angle = 0;
 
 function tick(now: number): void {
   const dt = (now - lastTime) / 1000;
+  lastTime = now;
+
   frameCount++;
-  if (now - lastTime >= 1000) {
+  if (now - lastFpsTime >= 1000) {
     if (fpsDisplay) fpsDisplay.textContent = `${frameCount}`;
     frameCount = 0;
-    lastTime = now;
+    lastFpsTime = now;
   }
 
   time  += dt;
