@@ -4,6 +4,7 @@ import {
   mulMat4Vec4, mat4Mul,
   mat4RotationX, mat4RotationY,
   mat4Translation,
+  mat4Perspective,
 } from './math';
 import { parseObj } from './obj-parser';
 import objText from '../models/tetrahedron.obj?raw';
@@ -20,25 +21,33 @@ const fb = new Framebuffer(canvas, WIDTH, HEIGHT);
 const mesh = parseObj(objText);
 
 // ── Camera / View matrix ─────────────────────────────────────────────────────
-// Camera sits at world position (0, 0, 3) — 3 units in front of the origin.
-// The view matrix moves the world in the opposite direction (-z) so the model
-// ends up in front of the camera. No rotation yet: camera looks straight down -Z.
-const CAM_Z = 3;
-const viewMatrix = mat4Translation(0, 0, -CAM_Z);
+// Camera fixed at (0, 0, 4) looking down −Z.
+const viewMatrix = mat4Translation(0, 0, -4);
 
-// ── Projection ───────────────────────────────────────────────────────────────
-// Orthographic: drop Z, scale ×150, centre on canvas, flip Y (screen Y is down).
-function project(v: { x: number; y: number; z: number }): { x: number; y: number } {
-  const scale = 150;
+// ── Projection matrix ─────────────────────────────────────────────────────────
+// 60° vertical FOV, correct aspect, near=0.1, far=100.
+// This makes objects appear smaller as they move farther away (real perspective).
+const projMatrix = mat4Perspective(
+  Math.PI / 3,        // 60° vertical FOV
+  WIDTH / HEIGHT,     // 4:3 aspect ratio
+  0.1,                // near plane
+  100,                // far plane
+);
+
+// ── NDC → screen pixels ───────────────────────────────────────────────────────
+// After the perspective divide, x/y are in [-1, 1] (NDC).
+// Map to canvas pixel coordinates, flipping Y (screen Y grows downward).
+function ndcToScreen(x: number, y: number): { x: number; y: number } {
   return {
-    x: WIDTH  / 2 + v.x * scale,
-    y: HEIGHT / 2 - v.y * scale,
+    x: (x + 1) * 0.5 * WIDTH,
+    y: (1 - y) * 0.5 * HEIGHT,
   };
 }
 
-// ── Render loop ──────────────────────────────────────────────────────────────
+// ── Render loop ───────────────────────────────────────────────────────────────
 let lastTime   = performance.now();
 let frameCount = 0;
+let time   = 0;   // total elapsed seconds — drives Z oscillation
 let angleX = 0;
 let angleY = 0;
 
@@ -51,24 +60,31 @@ function tick(now: number): void {
     lastTime = now;
   }
 
-  angleX += dt * 0.6;
-  angleY += dt * 0.9;
+  // Slow, easy-to-read rotation
+  time   += dt;
+  angleX += dt * 0.25;   // ~14°/s tilt
+  angleY += dt * 0.40;   // ~23°/s spin
 
-  fb.clear(13, 17, 23);
+  fb.clear(0, 0, 0);
 
-  // 1. Model matrix: local rotations (model space → world space)
-  const modelMatrix = mat4Mul(mat4RotationX(angleX), mat4RotationY(angleY));
+  // ── Build MVP ────────────────────────────────────────────────────────────────
+  // Z oscillation: model drifts ±1.2 units toward/away from camera so the
+  // perspective size change is clearly visible (closer = bigger, farther = smaller).
+  const modelZ  = Math.sin(time * 0.5) * 1.2;
+  const rotations   = mat4Mul(mat4RotationX(angleX), mat4RotationY(angleY));
+  const modelMatrix = mat4Mul(mat4Translation(0, 0, modelZ), rotations);
 
-  // 2. MV matrix: view applied after model (world space → camera space)
-  //    Read right-to-left: model first, then view.
-  const mvMatrix = mat4Mul(viewMatrix, modelMatrix);
+  // MVP = projection × view × model  (applied right-to-left to each vertex)
+  const mvpMatrix = mat4Mul(projMatrix, mat4Mul(viewMatrix, modelMatrix));
 
-  // 3. Transform every vertex through the full MV pipeline, then project
-  const screen = mesh.vertices.map(v =>
-    project(fromHomogeneous(mulMat4Vec4(mvMatrix, toHomogeneous(v)))),
-  );
+  // ── Transform vertices: model space → clip space → NDC → screen ─────────────
+  const screen = mesh.vertices.map(v => {
+    const clip = mulMat4Vec4(mvpMatrix, toHomogeneous(v));
+    const ndc  = fromHomogeneous(clip);   // perspective divide: xyz / w
+    return ndcToScreen(ndc.x, ndc.y);
+  });
 
-  // 4. For each triangle face, draw its 3 edges using Bresenham
+  // ── Draw wireframe edges ─────────────────────────────────────────────────────
   for (const { a, b, c } of mesh.faces) {
     fb.drawLineBresenham(screen[a].x, screen[a].y, screen[b].x, screen[b].y, 80, 200, 255);
     fb.drawLineBresenham(screen[b].x, screen[b].y, screen[c].x, screen[c].y, 80, 200, 255);
@@ -80,4 +96,3 @@ function tick(now: number): void {
 }
 
 requestAnimationFrame(tick);
-
