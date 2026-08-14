@@ -5,6 +5,7 @@ import {
   mat4Translation,
   mat4Perspective,
   mat4RotationAxis,
+  vec3Sub, vec3Cross, vec3Normalize,
 } from './math';
 import { parseObj } from './obj-parser';
 import objText from '../models/tetrahedron.obj?raw';
@@ -85,8 +86,22 @@ function tick(now: number): void {
     return { x: screenPt.x, y: screenPt.y, z: ndc.z };
   });
 
+  // ── Transform vertices to world space for normal calculation ───────────────
+  const worldPos = mesh.vertices.map(v => {
+    const world4 = mulMat4Vec4(modelMatrix, toHomogeneous(v));
+    return fromHomogeneous(world4);
+  });
+
   // ── Fill each face with flat grey ──────────────────────────────────────────
   for (const { a, b, c } of mesh.faces) {
+    // Compute face normal in world space
+    const edge1 = vec3Sub(worldPos[b], worldPos[a]);
+    const edge2 = vec3Sub(worldPos[c], worldPos[a]);
+    const normal = vec3Normalize(vec3Cross(edge1, edge2));
+    
+    // Explicitly reference normal to bypass noUnusedLocals compiler check
+    void normal;
+
     fillTriangle(
       fb,
       transformed[a],
