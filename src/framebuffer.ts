@@ -64,48 +64,6 @@ export class Framebuffer {
   }
 
   /**
-   * DDA (Digital Differential Analyzer) line rasterizer.
-   *
-   * Computes how far to step in x and y per iteration by dividing
-   * the full delta by the larger of the two axes (the "driving axis").
-   * That guarantees exactly one pixel lit per step with no gaps.
-   *
-   *   steps  = max(|dx|, |dy|)
-   *   xStep  = dx / steps
-   *   yStep  = dy / steps
-   *
-   * Then walk `steps` times, accumulating sub-pixel x/y each iteration
-   * and rounding to the nearest integer before calling setPixel.
-   */
-  public drawLine(
-    x0: number, y0: number,
-    x1: number, y1: number,
-    r: number, g: number, b: number, a: number = 255,
-  ): void {
-    const dx = x1 - x0;
-    const dy = y1 - y0;
-    const steps = Math.max(Math.abs(dx), Math.abs(dy));
-
-    // Degenerate case: both endpoints are the same pixel
-    if (steps === 0) {
-      this.setPixel(x0, y0, r, g, b, a);
-      return;
-    }
-
-    const xStep = dx / steps;
-    const yStep = dy / steps;
-
-    let x = x0;
-    let y = y0;
-
-    for (let i = 0; i <= steps; i++) {
-      this.setPixel(Math.round(x), Math.round(y), r, g, b, a);
-      x += xStep;
-      y += yStep;
-    }
-  }
-
-  /**
    * Bresenham line rasterizer — integer-only, zero floating-point per step.
    *
    * Core idea: track an integer error accumulator that represents how far

@@ -36,13 +36,8 @@ const projMatrix = mat4Perspective(
 const axisLen = Math.sqrt(1**2 + 1.6**2 + 0.5**2);
 const AXIS = { x: 1 / axisLen, y: 1.6 / axisLen, z: 0.5 / axisLen };
 
-// Distinct color per face so 3D structure is clear without lighting or wireframe
-const FACE_COLORS = [
-  [80, 180, 255],  // cyan
-  [255, 120, 80],  // orange
-  [120, 255, 120], // green
-  [220, 100, 220], // purple
-];
+// Single grey fill — will stay this colour until lighting is added.
+const FILL_R = 150, FILL_G = 150, FILL_B = 150;
 
 // ── NDC → screen pixels ───────────────────────────────────────────────────────
 function ndcToScreen(x: number, y: number): { x: number; y: number } {
@@ -86,11 +81,17 @@ function tick(now: number): void {
     return ndcToScreen(ndc.x, ndc.y);
   });
 
-  // ── Fill faces with flat color ───────────────────────────────────────────────
-  mesh.faces.forEach(({ a, b, c }, index) => {
-    const [r, g, bColor] = FACE_COLORS[index % FACE_COLORS.length];
-    fillTriangle(fb, screen[a], screen[b], screen[c], r, g, bColor);
-  });
+  // ── Fill each face with flat grey ──────────────────────────────────────────
+  for (const { a, b, c } of mesh.faces) {
+    fillTriangle(fb, screen[a], screen[b], screen[c], FILL_R, FILL_G, FILL_B);
+  }
+
+  // ── DEBUG wireframe (uncomment to overlay edges) ─────────────────────────
+  // for (const { a, b, c } of mesh.faces) {
+  //   fb.drawLineBresenham(screen[a].x, screen[a].y, screen[b].x, screen[b].y, 255, 80, 80);
+  //   fb.drawLineBresenham(screen[b].x, screen[b].y, screen[c].x, screen[c].y, 255, 80, 80);
+  //   fb.drawLineBresenham(screen[c].x, screen[c].y, screen[a].x, screen[a].y, 255, 80, 80);
+  // }
 
   fb.present();
   requestAnimationFrame(tick);
