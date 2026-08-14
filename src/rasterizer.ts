@@ -3,7 +3,7 @@
  *
  * Triangle rasterization pipeline.
  * Stage 6b: screen-space bounding box computation.
- * (Pixel-inside test and filling come in later stages.)
+ * Stage 6c: edge-function and barycentric coordinate pixel-inside test.
  */
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -25,6 +25,18 @@ export interface BoundingBox {
   maxY: number;
 }
 
+/**
+ * Barycentric coordinates (w0, w1, w2) representing a point's relative position
+ * with respect to triangle vertices (v0, v1, v2).
+ *
+ * w0 + w1 + w2 = 1
+ */
+export interface BarycentricCoords {
+  w0: number;
+  w1: number;
+  w2: number;
+}
+
 // ── Bounding box ──────────────────────────────────────────────────────────────
 
 /**
@@ -36,11 +48,6 @@ export interface BoundingBox {
  *
  * Returns null if the triangle lies entirely outside the viewport
  * (e.g. behind the camera or off all four edges of the screen).
- *
- * Why floor/ceil?
- *   Projected vertex coordinates are floating-point.  We floor the min
- *   to make sure we don't miss a partially covered pixel on the left/top,
- *   and ceil the max for the same reason on the right/bottom.
  */
 export function triangleBoundingBox(
   v0: ScreenPoint,
@@ -65,4 +72,55 @@ export function triangleBoundingBox(
   if (minX > maxX || minY > maxY) return null;
 
   return { minX, minY, maxX, maxY };
+}
+
+// ── Edge function & Barycentric coordinates ───────────────────────────────────
+
+/**
+ * 2D cross product edge function for line segment (a -> b) and point c.
+ *
+ *   edgeFunction(a, b, c) = (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x)
+ *
+ * Returns a value proportional to the signed area of triangle (a, b, c).
+ * The sign indicates which side of line ab point c lies on.
+ */
+export function edgeFunction(a: ScreenPoint, b: ScreenPoint, c: ScreenPoint): number {
+  return (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x);
+}
+
+/**
+ * Computes barycentric coordinates (w0, w1, w2) for point p relative to triangle (v0, v1, v2).
+ *
+ * Returns null if the triangle is degenerate (zero area).
+ */
+export function barycentric(
+  v0: ScreenPoint,
+  v1: ScreenPoint,
+  v2: ScreenPoint,
+  p: ScreenPoint,
+): BarycentricCoords | null {
+  const area = edgeFunction(v0, v1, v2);
+  if (area === 0) return null;
+
+  const invArea = 1 / area;
+  const w0 = edgeFunction(v1, v2, p) * invArea;
+  const w1 = edgeFunction(v2, v0, p) * invArea;
+  const w2 = edgeFunction(v0, v1, p) * invArea;
+
+  return { w0, w1, w2 };
+}
+
+/**
+ * Tests whether pixel/point p lies inside or on the boundary of triangle (v0, v1, v2).
+ */
+export function isPixelInsideTriangle(
+  v0: ScreenPoint,
+  v1: ScreenPoint,
+  v2: ScreenPoint,
+  p: ScreenPoint,
+): boolean {
+  const coords = barycentric(v0, v1, v2, p);
+  if (!coords) return false;
+
+  return coords.w0 >= 0 && coords.w1 >= 0 && coords.w2 >= 0;
 }
