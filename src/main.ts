@@ -8,6 +8,7 @@ import {
 } from './math';
 import { parseObj } from './obj-parser';
 import objText from '../models/tetrahedron.obj?raw';
+import { fillTriangle } from './rasterizer';
 
 const WIDTH  = 640;
 const HEIGHT = 480;
@@ -32,11 +33,16 @@ const projMatrix = mat4Perspective(
 );
 
 // ── Rotation axis ─────────────────────────────────────────────────────────────
-// A single tilted axis gives perfectly constant angular velocity — no gimbal
-// lock spikes. The axis (1, 1.6, 0.5) is normalised below; its tilt means the
-// model tumbles through many orientations (top, sides, and bottom all visible).
 const axisLen = Math.sqrt(1**2 + 1.6**2 + 0.5**2);
 const AXIS = { x: 1 / axisLen, y: 1.6 / axisLen, z: 0.5 / axisLen };
+
+// Distinct color per face so 3D structure is clear without lighting or wireframe
+const FACE_COLORS = [
+  [80, 180, 255],  // cyan
+  [255, 120, 80],  // orange
+  [120, 255, 120], // green
+  [220, 100, 220], // purple
+];
 
 // ── NDC → screen pixels ───────────────────────────────────────────────────────
 function ndcToScreen(x: number, y: number): { x: number; y: number } {
@@ -50,7 +56,7 @@ function ndcToScreen(x: number, y: number): { x: number; y: number } {
 let lastTime   = performance.now();
 let frameCount = 0;
 let time  = 0;
-let angle = 0;  // single accumulator — constant angular velocity guaranteed
+let angle = 0;
 
 function tick(now: number): void {
   const dt = (now - lastTime) / 1000;
@@ -62,13 +68,11 @@ function tick(now: number): void {
   }
 
   time  += dt;
-  angle += dt * 0.05;   // ~2.9°/s — full rotation every ~125 s; very slow, no spikes
+  angle += dt * 0.05;
 
   fb.clear(0, 0, 0);
 
   // ── Build MVP ────────────────────────────────────────────────────────────────
-  // Subtle Z oscillation (±0.4) so perspective depth is visible but doesn't
-  // cause perceived speed changes the way ±1.2 did.
   const modelZ      = Math.sin(time * 0.2) * 0.4;
   const rotation    = mat4RotationAxis(AXIS.x, AXIS.y, AXIS.z, angle);
   const modelMatrix = mat4Mul(mat4Translation(0, 0, modelZ), rotation);
@@ -82,12 +86,11 @@ function tick(now: number): void {
     return ndcToScreen(ndc.x, ndc.y);
   });
 
-  // ── Draw wireframe edges ─────────────────────────────────────────────────────
-  for (const { a, b, c } of mesh.faces) {
-    fb.drawLineBresenham(screen[a].x, screen[a].y, screen[b].x, screen[b].y, 80, 200, 255);
-    fb.drawLineBresenham(screen[b].x, screen[b].y, screen[c].x, screen[c].y, 80, 200, 255);
-    fb.drawLineBresenham(screen[c].x, screen[c].y, screen[a].x, screen[a].y, 80, 200, 255);
-  }
+  // ── Fill faces with flat color ───────────────────────────────────────────────
+  mesh.faces.forEach(({ a, b, c }, index) => {
+    const [r, g, bColor] = FACE_COLORS[index % FACE_COLORS.length];
+    fillTriangle(fb, screen[a], screen[b], screen[c], r, g, bColor);
+  });
 
   fb.present();
   requestAnimationFrame(tick);

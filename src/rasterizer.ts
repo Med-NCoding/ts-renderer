@@ -1,9 +1,12 @@
+import type { Framebuffer } from './framebuffer';
+
 /**
  * rasterizer.ts
  *
  * Triangle rasterization pipeline.
  * Stage 6b: screen-space bounding box computation.
  * Stage 6c: edge-function and barycentric coordinate pixel-inside test.
+ * Stage 6d: flat triangle filling via bounding box & inside test.
  */
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -123,4 +126,34 @@ export function isPixelInsideTriangle(
   if (!coords) return false;
 
   return coords.w0 >= 0 && coords.w1 >= 0 && coords.w2 >= 0;
+}
+
+// ── Triangle filling ──────────────────────────────────────────────────────────
+
+/**
+ * Rasterizes (fills) a 2D projected triangle into the framebuffer with a flat RGBA color.
+ * Iterates only over the pixels within the triangle's screen bounding box and tests
+ * each pixel center against the edge functions.
+ */
+export function fillTriangle(
+  fb: Framebuffer,
+  v0: ScreenPoint,
+  v1: ScreenPoint,
+  v2: ScreenPoint,
+  r: number,
+  g: number,
+  b: number,
+  a: number = 255,
+): void {
+  const box = triangleBoundingBox(v0, v1, v2, fb.width, fb.height);
+  if (!box) return;
+
+  for (let y = box.minY; y <= box.maxY; y++) {
+    for (let x = box.minX; x <= box.maxX; x++) {
+      const pixelCenter: ScreenPoint = { x: x + 0.5, y: y + 0.5 };
+      if (isPixelInsideTriangle(v0, v1, v2, pixelCenter)) {
+        fb.setPixel(x, y, r, g, b, a);
+      }
+    }
+  }
 }
