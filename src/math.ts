@@ -226,3 +226,23 @@ export function mat4RotationY(angle: number): Mat4 {
   ];
 }
 
+/**
+ * Returns a translation matrix that moves points by (tx, ty, tz).
+ *
+ *   | 1  0  0  tx |
+ *   | 0  1  0  ty |
+ *   | 0  0  1  tz |
+ *   | 0  0  0   1 |
+ *
+ * To express a camera at position (cx, cy, cz), translate the world by
+ * (-cx, -cy, -cz) — that is, move everything relative to the camera,
+ * not the camera relative to everything.
+ */
+export function mat4Translation(tx: number, ty: number, tz: number): Mat4 {
+  return [
+    1, 0, 0, tx,
+    0, 1, 0, ty,
+    0, 0, 1, tz,
+    0, 0, 0,  1,
+  ];
+}

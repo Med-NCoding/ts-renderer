@@ -3,6 +3,7 @@ import {
   toHomogeneous, fromHomogeneous,
   mulMat4Vec4, mat4Mul,
   mat4RotationX, mat4RotationY,
+  mat4Translation,
 } from './math';
 import { parseObj } from './obj-parser';
 import objText from '../models/tetrahedron.obj?raw';
@@ -15,14 +16,19 @@ const canvas     = document.getElementById('render-canvas') as HTMLCanvasElement
 const fpsDisplay = document.getElementById('fps-display')   as HTMLSpanElement;
 const modeDisplay = document.getElementById('mode-display') as HTMLSpanElement;
 
-if (modeDisplay) modeDisplay.textContent = 'OBJ Wireframe — tetrahedron';
+if (modeDisplay) modeDisplay.textContent = 'OBJ Wireframe — view transform';
 
 const fb = new Framebuffer(canvas, WIDTH, HEIGHT);
 
 // ── Load OBJ ─────────────────────────────────────────────────────────────────
-// parseObj reads the raw text and returns { vertices: Vec3[], faces: Face[] }.
-// "faces" are triangles; each triangle has 3 vertex indices (a, b, c).
 const mesh = parseObj(objText);
+
+// ── Camera / View matrix ─────────────────────────────────────────────────────
+// Camera sits at world position (0, 0, 3) — 3 units in front of the origin.
+// The view matrix moves the world in the opposite direction (-z) so the model
+// ends up in front of the camera. No rotation yet: camera looks straight down -Z.
+const CAM_Z = 3;
+const viewMatrix = mat4Translation(0, 0, -CAM_Z);
 
 // ── Projection ───────────────────────────────────────────────────────────────
 // Orthographic: drop Z, scale ×150, centre on canvas, flip Y (screen Y is down).
@@ -54,16 +60,19 @@ function tick(now: number): void {
 
   fb.clear(13, 17, 23);
 
-  // 1. Build the model matrix once per frame (Y rotation then X rotation)
-  //    mat4Mul(RX, RY) means: apply RY first, then RX — matches old behaviour.
+  // 1. Model matrix: local rotations (model space → world space)
   const modelMatrix = mat4Mul(mat4RotationX(angleX), mat4RotationY(angleY));
 
-  // 2. Transform every OBJ vertex: model space → world space → 2D screen
+  // 2. MV matrix: view applied after model (world space → camera space)
+  //    Read right-to-left: model first, then view.
+  const mvMatrix = mat4Mul(viewMatrix, modelMatrix);
+
+  // 3. Transform every vertex through the full MV pipeline, then project
   const screen = mesh.vertices.map(v =>
-    project(fromHomogeneous(mulMat4Vec4(modelMatrix, toHomogeneous(v)))),
+    project(fromHomogeneous(mulMat4Vec4(mvMatrix, toHomogeneous(v)))),
   );
 
-  // 2. For each triangle face, draw its 3 edges using Bresenham
+  // 4. For each triangle face, draw its 3 edges using Bresenham
   for (const { a, b, c } of mesh.faces) {
     fb.drawLineBresenham(screen[a].x, screen[a].y, screen[b].x, screen[b].y, 80, 200, 255);
     fb.drawLineBresenham(screen[b].x, screen[b].y, screen[c].x, screen[c].y, 80, 200, 255);
