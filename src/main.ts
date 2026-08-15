@@ -8,7 +8,7 @@ import {
   vec3Sub, vec3Cross, vec3Normalize, vec3Dot,
 } from './math';
 import { parseObj } from './obj-parser';
-import objText from '../models/tetrahedron.obj?raw';
+import objText from '../models/cube.obj?raw';
 import { fillTriangle } from './rasterizer';
 
 const WIDTH  = 640;
@@ -126,13 +126,6 @@ function tick(now: number): void {
       bColor,
     );
   }
-
-  // ── DEBUG wireframe (uncomment to overlay edges) ─────────────────────────
-  // for (const { a, b, c } of mesh.faces) {
-  //   fb.drawLineBresenham(transformed[a].x, transformed[a].y, transformed[b].x, transformed[b].y, 255, 80, 80);
-  //   fb.drawLineBresenham(transformed[b].x, transformed[b].y, transformed[c].x, transformed[c].y, 255, 80, 80);
-  //   fb.drawLineBresenham(transformed[c].x, transformed[c].y, transformed[a].x, transformed[a].y, 255, 80, 80);
-  // }
 
   fb.present();
   requestAnimationFrame(tick);

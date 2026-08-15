@@ -1,0 +1,45 @@
+# Unit cube centered at origin — 8 vertices, 12 triangular faces
+# Vertices at ±1 on each axis; CCW winding when viewed from outside.
+#
+# Vertex layout:
+#   0  (-1, -1, -1)  back  bottom left
+#   1  ( 1, -1, -1)  back  bottom right
+#   2  ( 1,  1, -1)  back  top    right
+#   3  (-1,  1, -1)  back  top    left
+#   4  (-1, -1,  1)  front bottom left
+#   5  ( 1, -1,  1)  front bottom right
+#   6  ( 1,  1,  1)  front top    right
+#   7  (-1,  1,  1)  front top    left
+
+v -1 -1 -1
+v  1 -1 -1
+v  1  1 -1
+v -1  1 -1
+v -1 -1  1
+v  1 -1  1
+v  1  1  1
+v -1  1  1
+
+# Front face  (+Z)
+f 5 6 7
+f 5 7 8
+
+# Back face   (-Z)
+f 2 1 4
+f 2 4 3
+
+# Left face   (-X)
+f 1 5 8
+f 1 8 4
+
+# Right face  (+X)
+f 6 2 3
+f 6 3 7
+
+# Top face    (+Y)
+f 8 7 3
+f 8 3 4
+
+# Bottom face (-Y)
+f 1 2 6
+f 1 6 5
