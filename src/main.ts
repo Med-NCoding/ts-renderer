@@ -66,7 +66,7 @@ function tick(now: number): void {
   lastTime = now;
 
   time  += dt;
-  angle += dt * 0.9;
+  angle += dt * 2.6;
 
   const renderStart = performance.now();
 
