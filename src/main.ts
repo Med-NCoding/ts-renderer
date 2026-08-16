@@ -8,7 +8,7 @@ import {
   vec3Sub, vec3Cross, vec3Normalize, vec3Dot,
 } from './math';
 import { parseObj } from './obj-parser';
-import objText from '../models/cube.obj?raw';
+import objText from '../models/suzanne.obj?raw';
 import { fillTriangle } from './rasterizer';
 
 const WIDTH  = 640;
@@ -51,26 +51,24 @@ function ndcToScreen(x: number, y: number): { x: number; y: number } {
   };
 }
 
-// ── Render loop ───────────────────────────────────────────────────────────────
-let lastTime    = performance.now();
-let lastFpsTime = lastTime;
-let frameCount  = 0;
-let time  = 0;
-let angle = 0;
+// ── Render loop & Performance Instrumentation ────────────────────────────────
+let lastTime         = performance.now();
+let lastFpsTime      = lastTime;
+let rafCallbacks     = 0;
+let renderedFrames   = 0;
+let totalRenderMs    = 0;
+let time             = 0;
+let angle            = 0;
 
 function tick(now: number): void {
+  rafCallbacks++;
   const dt = (now - lastTime) / 1000;
   lastTime = now;
 
-  frameCount++;
-  if (now - lastFpsTime >= 1000) {
-    if (fpsDisplay) fpsDisplay.textContent = `${frameCount}`;
-    frameCount = 0;
-    lastFpsTime = now;
-  }
-
   time  += dt;
-  angle += dt * 0.6;
+  angle += dt * 0.9;
+
+  const renderStart = performance.now();
 
   fb.clear(0, 0, 0);
 
@@ -128,6 +126,22 @@ function tick(now: number): void {
   }
 
   fb.present();
+
+  const renderEnd = performance.now();
+  totalRenderMs += (renderEnd - renderStart);
+  renderedFrames++;
+
+  if (now - lastFpsTime >= 1000) {
+    const avgMs = renderedFrames > 0 ? (totalRenderMs / renderedFrames).toFixed(2) : '0.00';
+    const text  = `RAF: ${rafCallbacks} | Render FPS: ${renderedFrames} | CPU: ${avgMs}ms`;
+    if (fpsDisplay) fpsDisplay.textContent = text;
+    console.log(`[PERF METRICS] ${text}`);
+    rafCallbacks   = 0;
+    renderedFrames = 0;
+    totalRenderMs  = 0;
+    lastFpsTime    = now;
+  }
+
   requestAnimationFrame(tick);
 }
 
