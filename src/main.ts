@@ -66,6 +66,9 @@ const LIGHT_DIR = vec3Normalize({ x: 1.0, y: 2.0, z: 1.0 });
 const BODY_R   = 215, BODY_G   = 220, BODY_B   = 225;
 const ACCENT_R =  40, ACCENT_G = 180, ACCENT_B = 220;
 
+// Ambient light baseline intensity (prevents unlit faces from becoming nearly black)
+const AMBIENT_LIGHT = 0.45;
+
 // ── NDC → screen pixels ───────────────────────────────────────────────────────
 function ndcToScreen(x: number, y: number): { x: number; y: number } {
   return {
@@ -184,8 +187,7 @@ function tick(now: number): void {
       const normal = vec3Normalize(vec3Cross(edge1, edge2));
 
       const diffuse = Math.max(0, vec3Dot(normal, LIGHT_DIR));
-      const ambient = 0.15;
-      const factor  = ambient + (1.0 - ambient) * diffuse;
+      const factor  = AMBIENT_LIGHT + (1.0 - AMBIENT_LIGHT) * diffuse;
 
       const isDetail = (a >= 16 && a <= 54);
       const baseR    = isDetail ? ACCENT_R : BODY_R;
