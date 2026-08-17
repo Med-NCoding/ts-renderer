@@ -170,6 +170,14 @@ function tick(now: number): void {
 
     // Flat-shaded diffuse + ambient per face
     for (const { a, b, c } of mesh.faces) {
+      const vA = transformed[a];
+      const vB = transformed[b];
+      const vC = transformed[c];
+
+      // Back-face culling: 2D screen-space cross product (skip facing away / degenerate)
+      const cross2D = (vB.x - vA.x) * (vC.y - vA.y) - (vB.y - vA.y) * (vC.x - vA.x);
+      if (cross2D <= 0) continue;
+
       const edge1  = vec3Sub(worldPos[b], worldPos[a]);
       const edge2  = vec3Sub(worldPos[c], worldPos[a]);
       const normal = vec3Normalize(vec3Cross(edge1, edge2));
