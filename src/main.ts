@@ -163,7 +163,7 @@ function tick(now: number): void {
       const clip     = mulMat4Vec4(mvpMatrix, toHomogeneous(v));
       const ndc      = fromHomogeneous(clip);
       const screenPt = ndcToScreen(ndc.x, ndc.y);
-      return { x: screenPt.x, y: screenPt.y, z: clip.w };
+      return { x: screenPt.x, y: screenPt.y, z: clip.w, ndcX: ndc.x, ndcY: ndc.y };
     });
 
     // Model → world (for diffuse normal calculation)
@@ -178,8 +178,11 @@ function tick(now: number): void {
       const vB = transformed[b];
       const vC = transformed[c];
 
-      // Near-plane clipping guard: skip triangles with any vertex behind or near camera
+      // Frustum & Near-plane clipping guard: skip triangles with vertices far off-screen or behind camera
       if (vA.z < 0.1 || vB.z < 0.1 || vC.z < 0.1) continue;
+      if (Math.abs(vA.ndcX) > 3.0 || Math.abs(vA.ndcY) > 3.0 ||
+          Math.abs(vB.ndcX) > 3.0 || Math.abs(vB.ndcY) > 3.0 ||
+          Math.abs(vC.ndcX) > 3.0 || Math.abs(vC.ndcY) > 3.0) continue;
 
       // Back-face culling: 2D screen-space cross product (skip facing away / degenerate)
       const cross2D = (vB.x - vA.x) * (vC.y - vA.y) - (vB.y - vA.y) * (vC.x - vA.x);
