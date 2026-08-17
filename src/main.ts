@@ -62,8 +62,10 @@ const AXIS = { x: 1 / axisLen, y: 1.6 / axisLen, z: 0.5 / axisLen };
 // Directional light vector pointing towards the light source (top-right-front)
 const LIGHT_DIR = vec3Normalize({ x: 1.0, y: 2.0, z: 1.0 });
 
-// Base material color (grey)
-const MATERIAL_R = 150, MATERIAL_G = 150, MATERIAL_B = 150;
+// Body color: solid medium-light grey
+const BODY_R = 190, BODY_G = 190, BODY_B = 190;
+// Accent color: blue — only for eyes and antenna diamond
+const ACCENT_R = 50, ACCENT_G = 160, ACCENT_B = 220;
 
 // ── NDC → screen pixels ───────────────────────────────────────────────────────
 function ndcToScreen(x: number, y: number): { x: number; y: number } {
@@ -183,12 +185,19 @@ function tick(now: number): void {
       const normal = vec3Normalize(vec3Cross(edge1, edge2));
 
       const diffuse = Math.max(0, vec3Dot(normal, LIGHT_DIR));
-      const ambient = 0.15;
+      const ambient = 0.38;
       const factor  = ambient + (1.0 - ambient) * diffuse;
 
-      const r      = Math.round(MATERIAL_R * factor);
-      const g      = Math.round(MATERIAL_G * factor);
-      const bColor = Math.round(MATERIAL_B * factor);
+      // Blue accent for: left eye (v23-30 = idx 22-29), right eye (v31-38 = idx 30-37),
+      // antenna ball (v17-22 = idx 16-21)
+      const isAccent = (a >= 16 && a <= 21) || (a >= 22 && a <= 29) || (a >= 30 && a <= 37);
+      const baseR = isAccent ? ACCENT_R : BODY_R;
+      const baseG = isAccent ? ACCENT_G : BODY_G;
+      const baseB = isAccent ? ACCENT_B : BODY_B;
+
+      const r      = Math.round(baseR * factor);
+      const g      = Math.round(baseG * factor);
+      const bColor = Math.round(baseB * factor);
 
       fillTriangle(
         fb,
