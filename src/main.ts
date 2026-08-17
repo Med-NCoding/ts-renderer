@@ -89,57 +89,84 @@ function tick(now: number): void {
 
   fb.clear(0, 0, 0);
 
-  // ── Build MVP ────────────────────────────────────────────────────────────────
-  const modelZ      = Math.sin(time * 0.2) * 0.4;
-  const rotation    = mat4RotationAxis(AXIS.x, AXIS.y, AXIS.z, angle);
-  const modelMatrix = mat4Mul(mat4Translation(0, 0, modelZ), rotation);
+  // ── 4 robot instances — shared mesh, unique world offset + local transform ───
+  //   1. Diagonal-axis spin  (original feel)       — left-front
+  //   2. Bob up/down + slow yaw                    — right-front
+  //   3. Move front/back (Z oscillation) + yaw     — left-back
+  //   4. Pitch + roll oscillation                  — right-back
+  const instances = [
+    {
+      px: -1.8, py: 0, pz:  0.0,
+      local: mat4RotationAxis(AXIS.x, AXIS.y, AXIS.z, angle),
+    },
+    {
+      px:  1.8, py: 0, pz:  0.0,
+      local: mat4Mul(
+        mat4Translation(0, Math.sin(time * 1.8) * 0.4, 0),
+        mat4RotationAxis(0, 1, 0, time * 0.8),
+      ),
+    },
+    {
+      px: -1.8, py: 0, pz: -1.8,
+      local: mat4Mul(
+        mat4Translation(0, 0, Math.sin(time * 1.3) * 0.6),
+        mat4RotationAxis(0, 1, 0, time * 0.6),
+      ),
+    },
+    {
+      px:  1.8, py: 0, pz: -1.8,
+      local: mat4Mul(
+        mat4RotationAxis(1, 0, 0, Math.sin(time * 1.1) * 0.4),
+        mat4RotationAxis(0, 0, 1, Math.sin(time * 0.9) * 0.4),
+      ),
+    },
+  ];
 
-  const mvpMatrix = mat4Mul(projMatrix, mat4Mul(viewMatrix, modelMatrix));
+  for (const inst of instances) {
+    const modelMatrix = mat4Mul(mat4Translation(inst.px, inst.py, inst.pz), inst.local);
+    const mvpMatrix   = mat4Mul(projMatrix, mat4Mul(viewMatrix, modelMatrix));
 
-  // ── Transform vertices: model space → clip space → NDC → screen ─────────────
-  const transformed = mesh.vertices.map(v => {
-    const clip = mulMat4Vec4(mvpMatrix, toHomogeneous(v));
-    const ndc  = fromHomogeneous(clip);
-    const screenPt = ndcToScreen(ndc.x, ndc.y);
-    return { x: screenPt.x, y: screenPt.y, z: ndc.z };
-  });
+    // Model → clip → NDC → screen
+    const transformed = mesh.vertices.map(v => {
+      const clip     = mulMat4Vec4(mvpMatrix, toHomogeneous(v));
+      const ndc      = fromHomogeneous(clip);
+      const screenPt = ndcToScreen(ndc.x, ndc.y);
+      return { x: screenPt.x, y: screenPt.y, z: ndc.z };
+    });
 
-  // ── Transform vertices to world space for normal calculation ───────────────
-  const worldPos = mesh.vertices.map(v => {
-    const world4 = mulMat4Vec4(modelMatrix, toHomogeneous(v));
-    return fromHomogeneous(world4);
-  });
+    // Model → world (for diffuse normal calculation)
+    const worldPos = mesh.vertices.map(v => {
+      const world4 = mulMat4Vec4(modelMatrix, toHomogeneous(v));
+      return fromHomogeneous(world4);
+    });
 
-  // ── Fill each face with flat grey modulated by diffuse lighting ───────────
-  for (const { a, b, c } of mesh.faces) {
-    // Compute face normal in world space
-    const edge1 = vec3Sub(worldPos[b], worldPos[a]);
-    const edge2 = vec3Sub(worldPos[c], worldPos[a]);
-    const normal = vec3Normalize(vec3Cross(edge1, edge2));
-    
-    // Diffuse lighting intensity: dot(normal, lightDir)
-    const diffuse = Math.max(0, vec3Dot(normal, LIGHT_DIR));
-    
-    // Add ambient component so unlit faces remain slightly visible
-    const ambient = 0.15;
-    const factor = ambient + (1.0 - ambient) * diffuse;
+    // Flat-shaded diffuse + ambient per face
+    for (const { a, b, c } of mesh.faces) {
+      const edge1  = vec3Sub(worldPos[b], worldPos[a]);
+      const edge2  = vec3Sub(worldPos[c], worldPos[a]);
+      const normal = vec3Normalize(vec3Cross(edge1, edge2));
 
-    const r = Math.round(MATERIAL_R * factor);
-    const g = Math.round(MATERIAL_G * factor);
-    const bColor = Math.round(MATERIAL_B * factor);
+      const diffuse = Math.max(0, vec3Dot(normal, LIGHT_DIR));
+      const ambient = 0.15;
+      const factor  = ambient + (1.0 - ambient) * diffuse;
 
-    fillTriangle(
-      fb,
-      transformed[a],
-      transformed[b],
-      transformed[c],
-      transformed[a].z,
-      transformed[b].z,
-      transformed[c].z,
-      r,
-      g,
-      bColor,
-    );
+      const r      = Math.round(MATERIAL_R * factor);
+      const g      = Math.round(MATERIAL_G * factor);
+      const bColor = Math.round(MATERIAL_B * factor);
+
+      fillTriangle(
+        fb,
+        transformed[a],
+        transformed[b],
+        transformed[c],
+        transformed[a].z,
+        transformed[b].z,
+        transformed[c].z,
+        r,
+        g,
+        bColor,
+      );
+    }
   }
 
   fb.present();
