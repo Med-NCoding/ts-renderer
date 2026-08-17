@@ -62,10 +62,8 @@ const AXIS = { x: 1 / axisLen, y: 1.6 / axisLen, z: 0.5 / axisLen };
 // Directional light vector pointing towards the light source (top-right-front)
 const LIGHT_DIR = vec3Normalize({ x: 1.0, y: 2.0, z: 1.0 });
 
-// Body color: solid medium-light grey
-const BODY_R = 190, BODY_G = 190, BODY_B = 190;
-// Accent color: blue — only for eyes and antenna diamond
-const ACCENT_R = 50, ACCENT_G = 160, ACCENT_B = 220;
+// Base material color (grey)
+const MATERIAL_R = 150, MATERIAL_G = 150, MATERIAL_B = 150;
 
 // ── NDC → screen pixels ───────────────────────────────────────────────────────
 function ndcToScreen(x: number, y: number): { x: number; y: number } {
@@ -81,8 +79,6 @@ let lastFpsTime      = lastTime;
 let rafCallbacks     = 0;
 let renderedFrames   = 0;
 let totalRenderMs    = 0;
-let totalInputTris   = 0;
-let totalCulledTris  = 0;
 let time             = 0;
 let angle            = 0;
 
@@ -174,36 +170,25 @@ function tick(now: number): void {
 
     // Flat-shaded diffuse + ambient per face
     for (const { a, b, c } of mesh.faces) {
-      totalInputTris++;
       const vA = transformed[a];
       const vB = transformed[b];
       const vC = transformed[c];
 
       // Back-face culling: 2D screen-space cross product (skip facing away / degenerate)
       const cross2D = (vB.x - vA.x) * (vC.y - vA.y) - (vB.y - vA.y) * (vC.x - vA.x);
-      if (cross2D <= 0) {
-        totalCulledTris++;
-        continue;
-      }
+      if (cross2D <= 0) continue;
 
       const edge1  = vec3Sub(worldPos[b], worldPos[a]);
       const edge2  = vec3Sub(worldPos[c], worldPos[a]);
       const normal = vec3Normalize(vec3Cross(edge1, edge2));
 
       const diffuse = Math.max(0, vec3Dot(normal, LIGHT_DIR));
-      const ambient = 0.38;
+      const ambient = 0.15;
       const factor  = ambient + (1.0 - ambient) * diffuse;
 
-      // Blue accent for: left eye (v23-30 = idx 22-29), right eye (v31-38 = idx 30-37),
-      // antenna ball (v17-22 = idx 16-21)
-      const isAccent = (a >= 16 && a <= 21) || (a >= 22 && a <= 29) || (a >= 30 && a <= 37);
-      const baseR = isAccent ? ACCENT_R : BODY_R;
-      const baseG = isAccent ? ACCENT_G : BODY_G;
-      const baseB = isAccent ? ACCENT_B : BODY_B;
-
-      const r      = Math.round(baseR * factor);
-      const g      = Math.round(baseG * factor);
-      const bColor = Math.round(baseB * factor);
+      const r      = Math.round(MATERIAL_R * factor);
+      const g      = Math.round(MATERIAL_G * factor);
+      const bColor = Math.round(MATERIAL_B * factor);
 
       fillTriangle(
         fb,
@@ -227,23 +212,14 @@ function tick(now: number): void {
   renderedFrames++;
 
   if (now - lastFpsTime >= 1000) {
-    const elapsedSec = (now - lastFpsTime) / 1000;
-    const rafFps     = Math.round(rafCallbacks / elapsedSec);
-    const renderFps  = Math.round(renderedFrames / elapsedSec);
-    const avgMs      = renderedFrames > 0 ? (totalRenderMs / renderedFrames).toFixed(2) : '0.00';
-    const avgInput   = renderedFrames > 0 ? Math.round(totalInputTris / renderedFrames) : 0;
-    const avgCulled  = renderedFrames > 0 ? Math.round(totalCulledTris / renderedFrames) : 0;
-
-    const text = `RAF: ${rafFps} | Render FPS: ${renderFps} | CPU: ${avgMs}ms | Tris: ${avgInput} | Culled: ${avgCulled}`;
+    const avgMs = renderedFrames > 0 ? (totalRenderMs / renderedFrames).toFixed(2) : '0.00';
+    const text  = `RAF: ${rafCallbacks} | Render FPS: ${renderedFrames} | CPU: ${avgMs}ms`;
     if (fpsDisplay) fpsDisplay.textContent = text;
     console.log(`[PERF METRICS] ${text}`);
-
-    rafCallbacks    = 0;
-    renderedFrames  = 0;
-    totalRenderMs   = 0;
-    totalInputTris  = 0;
-    totalCulledTris = 0;
-    lastFpsTime     = now;
+    rafCallbacks   = 0;
+    renderedFrames = 0;
+    totalRenderMs  = 0;
+    lastFpsTime    = now;
   }
 
   requestAnimationFrame(tick);
