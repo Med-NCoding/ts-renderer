@@ -62,12 +62,8 @@ const AXIS = { x: 1 / axisLen, y: 1.6 / axisLen, z: 0.5 / axisLen };
 // Directional light vector pointing towards the light source (top-right-front)
 const LIGHT_DIR = vec3Normalize({ x: 1.0, y: 2.0, z: 1.0 });
 
-// Base material colors: light gray / near-white for body, cyan accent for face/antenna details
-const BODY_R   = 215, BODY_G   = 220, BODY_B   = 225;
-const ACCENT_R =  40, ACCENT_G = 180, ACCENT_B = 220;
-
-// Ambient light baseline intensity (prevents unlit faces from becoming nearly black)
-const AMBIENT_LIGHT = 0.45;
+// Base material color (grey)
+const MATERIAL_R = 150, MATERIAL_G = 150, MATERIAL_B = 150;
 
 // ── NDC → screen pixels ───────────────────────────────────────────────────────
 function ndcToScreen(x: number, y: number): { x: number; y: number } {
@@ -163,7 +159,7 @@ function tick(now: number): void {
       const clip     = mulMat4Vec4(mvpMatrix, toHomogeneous(v));
       const ndc      = fromHomogeneous(clip);
       const screenPt = ndcToScreen(ndc.x, ndc.y);
-      return { x: screenPt.x, y: screenPt.y, z: clip.w, ndcX: ndc.x, ndcY: ndc.y };
+      return { x: screenPt.x, y: screenPt.y, z: ndc.z };
     });
 
     // Model → world (for diffuse normal calculation)
@@ -178,31 +174,21 @@ function tick(now: number): void {
       const vB = transformed[b];
       const vC = transformed[c];
 
-      // Frustum & Near-plane clipping guard: skip triangles with vertices far off-screen or behind camera
-      if (vA.z < 0.1 || vB.z < 0.1 || vC.z < 0.1) continue;
-      if (Math.abs(vA.ndcX) > 3.0 || Math.abs(vA.ndcY) > 3.0 ||
-          Math.abs(vB.ndcX) > 3.0 || Math.abs(vB.ndcY) > 3.0 ||
-          Math.abs(vC.ndcX) > 3.0 || Math.abs(vC.ndcY) > 3.0) continue;
-
       // Back-face culling: 2D screen-space cross product (skip facing away / degenerate)
       const cross2D = (vB.x - vA.x) * (vC.y - vA.y) - (vB.y - vA.y) * (vC.x - vA.x);
-      if (cross2D <= 0.001) continue;
+      if (cross2D <= 0) continue;
 
       const edge1  = vec3Sub(worldPos[b], worldPos[a]);
       const edge2  = vec3Sub(worldPos[c], worldPos[a]);
       const normal = vec3Normalize(vec3Cross(edge1, edge2));
 
       const diffuse = Math.max(0, vec3Dot(normal, LIGHT_DIR));
-      const factor  = AMBIENT_LIGHT + (1.0 - AMBIENT_LIGHT) * diffuse;
+      const ambient = 0.15;
+      const factor  = ambient + (1.0 - ambient) * diffuse;
 
-      const isDetail = (a >= 24 && a <= 50) || (a >= 59 && a <= 62);
-      const baseR    = isDetail ? ACCENT_R : BODY_R;
-      const baseG    = isDetail ? ACCENT_G : BODY_G;
-      const baseB    = isDetail ? ACCENT_B : BODY_B;
-
-      const r      = Math.round(baseR * factor);
-      const g      = Math.round(baseG * factor);
-      const bColor = Math.round(baseB * factor);
+      const r      = Math.round(MATERIAL_R * factor);
+      const g      = Math.round(MATERIAL_G * factor);
+      const bColor = Math.round(MATERIAL_B * factor);
 
       fillTriangle(
         fb,

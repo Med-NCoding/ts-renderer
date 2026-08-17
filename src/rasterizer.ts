@@ -103,7 +103,7 @@ export function barycentric(
   p: ScreenPoint,
 ): BarycentricCoords | null {
   const area = edgeFunction(v0, v1, v2);
-  if (Math.abs(area) < 1e-5) return null;
+  if (area === 0) return null;
 
   const invArea = 1 / area;
   const w0 = edgeFunction(v1, v2, p) * invArea;
@@ -157,12 +157,11 @@ export function fillTriangle(
       const pixelCenter: ScreenPoint = { x: x + 0.5, y: y + 0.5 };
       const coords = barycentric(v0, v1, v2, pixelCenter);
       if (coords && coords.w0 >= 0 && coords.w1 >= 0 && coords.w2 >= 0) {
-        // Interpolate 1/z linearly in screen space for perspective-correct depth
-        const invZ = coords.w0 * (1 / z0) + coords.w1 * (1 / z1) + coords.w2 * (1 / z2);
-        const depth = 1 / invZ;
+        // Interpolate depth value linearly in screen space using barycentric weights
+        const depth = coords.w0 * z0 + coords.w1 * z1 + coords.w2 * z2;
 
-        // Depth test: LEQUAL with float precision tolerance to eliminate Z-fighting stitch lines
-        if (depth <= fb.getDepth(x, y) + 1e-5) {
+        // Depth test: closer pixels have smaller depth values
+        if (depth < fb.getDepth(x, y)) {
           fb.setDepth(x, y, depth);
           fb.setPixel(x, y, r, g, b, a);
         }
