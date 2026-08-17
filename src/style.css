@@ -60,5 +60,6 @@ canvas {
   user-select: none;
   white-space: nowrap;
   transition: opacity 0.4s ease;
+#hint[data-locked="true"] {
+  opacity: 0.22;
 }
-
