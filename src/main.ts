@@ -81,6 +81,8 @@ let lastFpsTime      = lastTime;
 let rafCallbacks     = 0;
 let renderedFrames   = 0;
 let totalRenderMs    = 0;
+let totalInputTris   = 0;
+let totalCulledTris  = 0;
 let time             = 0;
 let angle            = 0;
 
@@ -172,13 +174,17 @@ function tick(now: number): void {
 
     // Flat-shaded diffuse + ambient per face
     for (const { a, b, c } of mesh.faces) {
+      totalInputTris++;
       const vA = transformed[a];
       const vB = transformed[b];
       const vC = transformed[c];
 
       // Back-face culling: 2D screen-space cross product (skip facing away / degenerate)
       const cross2D = (vB.x - vA.x) * (vC.y - vA.y) - (vB.y - vA.y) * (vC.x - vA.x);
-      if (cross2D <= 0) continue;
+      if (cross2D <= 0) {
+        totalCulledTris++;
+        continue;
+      }
 
       const edge1  = vec3Sub(worldPos[b], worldPos[a]);
       const edge2  = vec3Sub(worldPos[c], worldPos[a]);
@@ -221,12 +227,12 @@ function tick(now: number): void {
   renderedFrames++;
 
   if (now - lastFpsTime >= 1000) {
-    const avgMs = renderedFrames > 0 ? (totalRenderMs / renderedFrames).toFixed(2) : '0.00';
-    const text  = `RAF: ${rafCallbacks} | Render FPS: ${renderedFrames} | CPU: ${avgMs}ms`;
+    const avgMs     = renderedFrames > 0 ? (totalRenderMs / renderedFrames).toFixed(2) : '0.00';
+    const avgInput  = renderedFrames > 0 ? Math.round(totalInputTris / renderedFrames) : 0;
+    const avgCulled = renderedFrames > 0 ? Math.round(totalCulledTris / renderedFrames) : 0;
+    const text  = `RAF: ${rafCallbacks} | Render FPS: ${renderedFrames} | CPU: ${avgMs}ms | Tris: ${avgInput} | Culled: ${avgCulled}`;
     if (fpsDisplay) fpsDisplay.textContent = text;
     console.log(`[PERF METRICS] ${text}`);
-    rafCallbacks   = 0;
-    renderedFrames = 0;
     totalRenderMs  = 0;
     lastFpsTime    = now;
   }
