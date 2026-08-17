@@ -65,6 +65,11 @@ const LIGHT_DIR = vec3Normalize({ x: 1.0, y: 2.0, z: 1.0 });
 // Base material color (grey)
 const MATERIAL_R = 150, MATERIAL_G = 150, MATERIAL_B = 150;
 
+// Pre-allocated buffers for zero-allocation vertex transformations
+const numVerts = mesh.vertices.length;
+const transformed: { x: number; y: number; z: number }[] = Array.from({ length: numVerts }, () => ({ x: 0, y: 0, z: 0 }));
+const worldPos:    { x: number; y: number; z: number }[] = Array.from({ length: numVerts }, () => ({ x: 0, y: 0, z: 0 }));
+
 // ── NDC → screen pixels ───────────────────────────────────────────────────────
 function ndcToScreen(x: number, y: number): { x: number; y: number } {
   return {
@@ -154,19 +159,28 @@ function tick(now: number): void {
     const modelMatrix = mat4Mul(mat4Translation(inst.px, inst.py, inst.pz), inst.local);
     const mvpMatrix   = mat4Mul(projMatrix, mat4Mul(viewMatrix, modelMatrix));
 
-    // Model → clip → NDC → screen
-    const transformed = mesh.vertices.map(v => {
-      const clip     = mulMat4Vec4(mvpMatrix, toHomogeneous(v));
-      const ndc      = fromHomogeneous(clip);
-      const screenPt = ndcToScreen(ndc.x, ndc.y);
-      return { x: screenPt.x, y: screenPt.y, z: ndc.z };
-    });
+    for (let i = 0; i < numVerts; i++) {
+      const v = mesh.vertices[i];
+      const vx = v.x, vy = v.y, vz = v.z;
 
-    // Model → world (for diffuse normal calculation)
-    const worldPos = mesh.vertices.map(v => {
-      const world4 = mulMat4Vec4(modelMatrix, toHomogeneous(v));
-      return fromHomogeneous(world4);
-    });
+      // Model → world (for diffuse normal calculation)
+      const wp = worldPos[i];
+      wp.x = modelMatrix[0]*vx + modelMatrix[1]*vy + modelMatrix[2]*vz + modelMatrix[3];
+      wp.y = modelMatrix[4]*vx + modelMatrix[5]*vy + modelMatrix[6]*vz + modelMatrix[7];
+      wp.z = modelMatrix[8]*vx + modelMatrix[9]*vy + modelMatrix[10]*vz + modelMatrix[11];
+
+      // Model → clip → NDC → screen
+      const cx = mvpMatrix[0]*vx + mvpMatrix[1]*vy + mvpMatrix[2]*vz + mvpMatrix[3];
+      const cy = mvpMatrix[4]*vx + mvpMatrix[5]*vy + mvpMatrix[6]*vz + mvpMatrix[7];
+      const cz = mvpMatrix[8]*vx + mvpMatrix[9]*vy + mvpMatrix[10]*vz + mvpMatrix[11];
+      const cw = mvpMatrix[12]*vx + mvpMatrix[13]*vy + mvpMatrix[14]*vz + mvpMatrix[15];
+
+      const invW = 1 / cw;
+      const tp = transformed[i];
+      tp.x = (cx * invW + 1) * 0.5 * WIDTH;
+      tp.y = (1 - cy * invW) * 0.5 * HEIGHT;
+      tp.z = cz * invW;
+    }
 
     // Flat-shaded diffuse + ambient per face
     for (const { a, b, c } of mesh.faces) {
