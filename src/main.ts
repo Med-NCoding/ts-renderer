@@ -189,7 +189,7 @@ function tick(now: number): void {
       const diffuse = Math.max(0, vec3Dot(normal, LIGHT_DIR));
       const factor  = AMBIENT_LIGHT + (1.0 - AMBIENT_LIGHT) * diffuse;
 
-      const isDetail = (a >= 16 && a <= 54) || (a >= 111 && a <= 118);
+      const isDetail = (a >= 24 && a <= 62) || (a >= 71 && a <= 78);
       const baseR    = isDetail ? ACCENT_R : BODY_R;
       const baseG    = isDetail ? ACCENT_G : BODY_G;
       const baseB    = isDetail ? ACCENT_B : BODY_B;
