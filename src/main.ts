@@ -227,14 +227,23 @@ function tick(now: number): void {
   renderedFrames++;
 
   if (now - lastFpsTime >= 1000) {
-    const avgMs     = renderedFrames > 0 ? (totalRenderMs / renderedFrames).toFixed(2) : '0.00';
-    const avgInput  = renderedFrames > 0 ? Math.round(totalInputTris / renderedFrames) : 0;
-    const avgCulled = renderedFrames > 0 ? Math.round(totalCulledTris / renderedFrames) : 0;
-    const text  = `RAF: ${rafCallbacks} | Render FPS: ${renderedFrames} | CPU: ${avgMs}ms | Tris: ${avgInput} | Culled: ${avgCulled}`;
+    const elapsedSec = (now - lastFpsTime) / 1000;
+    const rafFps     = Math.round(rafCallbacks / elapsedSec);
+    const renderFps  = Math.round(renderedFrames / elapsedSec);
+    const avgMs      = renderedFrames > 0 ? (totalRenderMs / renderedFrames).toFixed(2) : '0.00';
+    const avgInput   = renderedFrames > 0 ? Math.round(totalInputTris / renderedFrames) : 0;
+    const avgCulled  = renderedFrames > 0 ? Math.round(totalCulledTris / renderedFrames) : 0;
+
+    const text = `RAF: ${rafFps} | Render FPS: ${renderFps} | CPU: ${avgMs}ms | Tris: ${avgInput} | Culled: ${avgCulled}`;
     if (fpsDisplay) fpsDisplay.textContent = text;
     console.log(`[PERF METRICS] ${text}`);
-    totalRenderMs  = 0;
-    lastFpsTime    = now;
+
+    rafCallbacks    = 0;
+    renderedFrames  = 0;
+    totalRenderMs   = 0;
+    totalInputTris  = 0;
+    totalCulledTris = 0;
+    lastFpsTime     = now;
   }
 
   requestAnimationFrame(tick);
