@@ -163,7 +163,7 @@ function tick(now: number): void {
       const clip     = mulMat4Vec4(mvpMatrix, toHomogeneous(v));
       const ndc      = fromHomogeneous(clip);
       const screenPt = ndcToScreen(ndc.x, ndc.y);
-      return { x: screenPt.x, y: screenPt.y, z: ndc.z };
+      return { x: screenPt.x, y: screenPt.y, z: clip.w };
     });
 
     // Model → world (for diffuse normal calculation)

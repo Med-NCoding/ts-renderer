@@ -157,8 +157,9 @@ export function fillTriangle(
       const pixelCenter: ScreenPoint = { x: x + 0.5, y: y + 0.5 };
       const coords = barycentric(v0, v1, v2, pixelCenter);
       if (coords && coords.w0 >= 0 && coords.w1 >= 0 && coords.w2 >= 0) {
-        // Interpolate depth value linearly in screen space using barycentric weights
-        const depth = coords.w0 * z0 + coords.w1 * z1 + coords.w2 * z2;
+        // Interpolate 1/z linearly in screen space for perspective-correct depth
+        const invZ = coords.w0 * (1 / z0) + coords.w1 * (1 / z1) + coords.w2 * (1 / z2);
+        const depth = 1 / invZ;
 
         // Depth test: closer pixels have smaller depth values
         if (depth < fb.getDepth(x, y)) {
