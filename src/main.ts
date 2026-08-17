@@ -5,6 +5,7 @@ import {
   mat4Translation,
   mat4Perspective,
   mat4RotationAxis,
+  mat4RotationX, mat4RotationY,
   vec3Sub, vec3Cross, vec3Normalize, vec3Dot,
 } from './math';
 import { parseObj } from './obj-parser';
@@ -22,8 +23,29 @@ const fb = new Framebuffer(canvas, WIDTH, HEIGHT);
 // ── Load OBJ ─────────────────────────────────────────────────────────────────
 const mesh = parseObj(objText);
 
-// ── Camera / View matrix ─────────────────────────────────────────────────────
-const viewMatrix = mat4Translation(0, 0, -4.8);
+// ── Camera state ─────────────────────────────────────────────────────────────
+let camX = 0, camY = 0, camZ = 4.8;   // world-space position (starts where static camera was)
+let camYaw   = 0;                       // left/right look (radians)
+let camPitch = 0;                       // up/down look   (radians, clamped)
+const CAM_SPEED  = 3.0;                // units per second
+const MOUSE_SENS = 0.002;             // radians per pixel
+const PITCH_MAX  = Math.PI / 2 - 0.01;
+
+const keys = new Set<string>();
+window.addEventListener('keydown', e => { keys.add(e.code); });
+window.addEventListener('keyup',   e => { keys.delete(e.code); });
+
+const hint = document.getElementById('hint') as HTMLDivElement | null;
+canvas.addEventListener('click', () => canvas.requestPointerLock());
+document.addEventListener('pointerlockchange', () => {
+  if (hint) hint.dataset.locked = String(document.pointerLockElement === canvas);
+});
+document.addEventListener('mousemove', (e: MouseEvent) => {
+  if (document.pointerLockElement !== canvas) return;
+  camYaw   += e.movementX * MOUSE_SENS;
+  camPitch -= e.movementY * MOUSE_SENS;
+  camPitch  = Math.max(-PITCH_MAX, Math.min(PITCH_MAX, camPitch));
+});
 
 // ── Projection matrix ─────────────────────────────────────────────────────────
 const projMatrix = mat4Perspective(
@@ -67,6 +89,21 @@ function tick(now: number): void {
 
   time  += dt;
   angle += dt * 2.6;
+
+  // ── Camera movement (horizontal-plane FPS; pitch only affects look, not move) ─
+  const fwdX = Math.sin(camYaw),  fwdZ = -Math.cos(camYaw);  // forward vector
+  const rgtX = Math.cos(camYaw),  rgtZ =  Math.sin(camYaw);  // right (strafe)
+  const spd  = CAM_SPEED * dt;
+  if (keys.has('KeyW')) { camX += fwdX * spd; camZ += fwdZ * spd; }
+  if (keys.has('KeyS')) { camX -= fwdX * spd; camZ -= fwdZ * spd; }
+  if (keys.has('KeyA')) { camX -= rgtX * spd; camZ -= rgtZ * spd; }
+  if (keys.has('KeyD')) { camX += rgtX * spd; camZ += rgtZ * spd; }
+
+  // Rebuild view matrix every frame from camera position + orientation
+  const viewMatrix = mat4Mul(
+    mat4Mul(mat4RotationX(camPitch), mat4RotationY(camYaw)),
+    mat4Translation(-camX, -camY, -camZ),
+  );
 
   const renderStart = performance.now();
 
