@@ -103,7 +103,7 @@ export function barycentric(
   p: ScreenPoint,
 ): BarycentricCoords | null {
   const area = edgeFunction(v0, v1, v2);
-  if (area === 0) return null;
+  if (Math.abs(area) < 1e-5) return null;
 
   const invArea = 1 / area;
   const w0 = edgeFunction(v1, v2, p) * invArea;

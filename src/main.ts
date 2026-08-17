@@ -178,9 +178,12 @@ function tick(now: number): void {
       const vB = transformed[b];
       const vC = transformed[c];
 
+      // Near-plane clipping guard: skip triangles with any vertex behind or near camera
+      if (vA.z < 0.1 || vB.z < 0.1 || vC.z < 0.1) continue;
+
       // Back-face culling: 2D screen-space cross product (skip facing away / degenerate)
       const cross2D = (vB.x - vA.x) * (vC.y - vA.y) - (vB.y - vA.y) * (vC.x - vA.x);
-      if (cross2D <= 0) continue;
+      if (cross2D <= 0.001) continue;
 
       const edge1  = vec3Sub(worldPos[b], worldPos[a]);
       const edge2  = vec3Sub(worldPos[c], worldPos[a]);
