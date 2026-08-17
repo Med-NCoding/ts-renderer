@@ -102,6 +102,11 @@ function tick(now: number): void {
   if (keys.has('ArrowUp'))   { camY += spd; }
   if (keys.has('ArrowDown')) { camY -= spd; }
 
+  // Clamp camera position within spatial boundary box around scene
+  camX = Math.max(-5.5, Math.min(5.5, camX));
+  camY = Math.max(-2.5, Math.min(4.0, camY));
+  camZ = Math.max(0.5,  Math.min(9.0, camZ));
+
   // View matrix: combined pitch, yaw, and camera translation
   const viewMatrix = mat4Mul(
     mat4Mul(mat4RotationX(camPitch), mat4RotationY(camYaw)),

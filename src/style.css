@@ -22,7 +22,9 @@ canvas {
   image-rendering: crisp-edges;
   width: 640px;
   height: 480px;
-  border: none;
+  border: 2px solid #3b3b44;
+  border-radius: 6px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(255, 255, 255, 0.08);
   outline: none;
 }
 
