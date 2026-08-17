@@ -62,8 +62,9 @@ const AXIS = { x: 1 / axisLen, y: 1.6 / axisLen, z: 0.5 / axisLen };
 // Directional light vector pointing towards the light source (top-right-front)
 const LIGHT_DIR = vec3Normalize({ x: 1.0, y: 2.0, z: 1.0 });
 
-// Base material color (subtle steel blue tone for contrast and shading readability)
-const MATERIAL_R = 130, MATERIAL_G = 165, MATERIAL_B = 195;
+// Base material colors: light gray / near-white for body, cyan accent for face/antenna details
+const BODY_R   = 215, BODY_G   = 220, BODY_B   = 225;
+const ACCENT_R =  40, ACCENT_G = 180, ACCENT_B = 220;
 
 // ── NDC → screen pixels ───────────────────────────────────────────────────────
 function ndcToScreen(x: number, y: number): { x: number; y: number } {
@@ -186,9 +187,14 @@ function tick(now: number): void {
       const ambient = 0.15;
       const factor  = ambient + (1.0 - ambient) * diffuse;
 
-      const r      = Math.round(MATERIAL_R * factor);
-      const g      = Math.round(MATERIAL_G * factor);
-      const bColor = Math.round(MATERIAL_B * factor);
+      const isDetail = (a >= 16 && a <= 54);
+      const baseR    = isDetail ? ACCENT_R : BODY_R;
+      const baseG    = isDetail ? ACCENT_G : BODY_G;
+      const baseB    = isDetail ? ACCENT_B : BODY_B;
+
+      const r      = Math.round(baseR * factor);
+      const g      = Math.round(baseG * factor);
+      const bColor = Math.round(baseB * factor);
 
       fillTriangle(
         fb,
