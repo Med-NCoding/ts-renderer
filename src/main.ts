@@ -8,7 +8,7 @@ import {
   vec3Sub, vec3Cross, vec3Normalize, vec3Dot,
 } from './math';
 import { parseObj } from './obj-parser';
-import objText from '../models/bunny.obj?raw';
+import objText from '../models/robot.obj?raw';
 import { fillTriangle } from './rasterizer';
 
 const WIDTH  = 640;
