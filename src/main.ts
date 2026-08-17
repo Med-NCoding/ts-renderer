@@ -62,8 +62,8 @@ const AXIS = { x: 1 / axisLen, y: 1.6 / axisLen, z: 0.5 / axisLen };
 // Directional light vector pointing towards the light source (top-right-front)
 const LIGHT_DIR = vec3Normalize({ x: 1.0, y: 2.0, z: 1.0 });
 
-// Base material color (grey)
-const MATERIAL_R = 150, MATERIAL_G = 150, MATERIAL_B = 150;
+// Base material color (subtle steel blue tone for contrast and shading readability)
+const MATERIAL_R = 130, MATERIAL_G = 165, MATERIAL_B = 195;
 
 // ── NDC → screen pixels ───────────────────────────────────────────────────────
 function ndcToScreen(x: number, y: number): { x: number; y: number } {
