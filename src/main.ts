@@ -1,7 +1,6 @@
 import { Framebuffer } from './framebuffer';
 import {
-  toHomogeneous, fromHomogeneous,
-  mulMat4Vec4, mat4Mul,
+  mat4Mul,
   mat4Translation,
   mat4Perspective,
   mat4RotationAxis,
@@ -69,14 +68,6 @@ const MATERIAL_R = 150, MATERIAL_G = 150, MATERIAL_B = 150;
 const numVerts = mesh.vertices.length;
 const transformed: { x: number; y: number; z: number }[] = Array.from({ length: numVerts }, () => ({ x: 0, y: 0, z: 0 }));
 const worldPos:    { x: number; y: number; z: number }[] = Array.from({ length: numVerts }, () => ({ x: 0, y: 0, z: 0 }));
-
-// ── NDC → screen pixels ───────────────────────────────────────────────────────
-function ndcToScreen(x: number, y: number): { x: number; y: number } {
-  return {
-    x: (x + 1) * 0.5 * WIDTH,
-    y: (1 - y) * 0.5 * HEIGHT,
-  };
-}
 
 // ── Render loop & Performance Instrumentation ────────────────────────────────
 let lastTime         = performance.now();
