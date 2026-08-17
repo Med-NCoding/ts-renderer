@@ -161,8 +161,8 @@ export function fillTriangle(
         const invZ = coords.w0 * (1 / z0) + coords.w1 * (1 / z1) + coords.w2 * (1 / z2);
         const depth = 1 / invZ;
 
-        // Depth test: closer pixels have smaller depth values
-        if (depth < fb.getDepth(x, y)) {
+        // Depth test: LEQUAL with float precision tolerance to eliminate Z-fighting stitch lines
+        if (depth <= fb.getDepth(x, y) + 1e-5) {
           fb.setDepth(x, y, depth);
           fb.setPixel(x, y, r, g, b, a);
         }
